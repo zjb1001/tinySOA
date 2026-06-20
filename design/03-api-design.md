@@ -9,15 +9,46 @@
 
 ## 2. 核心概念
 
-- 服务（Service）：由 `service_id`、`instance_id`、版本、方法与事件组成。
-- 方法（Method）：远程过程调用（RPC），请求-响应。
-- 事件（Event）：发布/订阅模型，通知订阅者最新状态。
-- 代理（Proxy）：客户端侧的服务调用封装，支持负载均衡、重试与超时。
-- 注册表（Registry）：本地维护已注册与已发现的服务元数据与状态。
+- **服务（Service）**：由 `service_id`、`instance_id`、版本、方法与事件组成。
+- **方法（Method）**：远程过程调用（RPC），请求-响应。
+- **事件（Event）**：发布/订阅模型，通过事件组通知订阅者最新状态。
+- **代理（Proxy）**：客户端侧的服务调用封装，支持负载均衡、重试与超时。
+- **注册表（Registry）**：分布式服务发现与注册，维护已发现服务的元数据与状态。
+- **拦截器链（Interceptor Chain）**：贯穿调用生命周期，提供认证、限流、追踪等横切关注点。
 
 ## 3. 服务定义（Server）
 
-建议提供声明式装饰器与简易构造器，封装 `someip.service.SimpleService`。
+`@Service` 装饰器将类与元数据绑定，自动生成服务端脚手架。内部封装 `Service` 数据模型构造与传输层初始化。
+
+```python
+from tinysoa import Service, rpc, eventgroup
+
+@Service(
+    service_id=0x1234,
+    instance_id=0x0001,
+    version=(1, 0),
+    name="CalcService",
+)
+class CalcService:
+    @rpc(method_id=0x0001)
+    async def add(self, a: int, b: int) -> int:
+        return a + b
+
+    @rpc(method_id=0x0002)
+    async def mul(self, a: int, b: int) -> int:
+        return a * b
+
+    # 事件组：用于发布状态变化通知
+    status = eventgroup(id=0x0001)
+
+    async def on_start(self):
+        # 初始化资源、连接、缓存等
+        pass
+
+    async def on_stop(self):
+        # 释放资源
+        pass
+```
 
 ```python
 # 伪代码，仅为API提案
@@ -64,7 +95,7 @@ async def main():
 
 ## 4. 客户端代理（Client / Proxy）
 
-代理负责：发现可用实例、选择端点、发起调用、处理重试与超时、上下文传播。
+代理负责：发现可用实例、选择端点、发起调用、处理重试与超时、上下文传播。`ServiceProxy` 构建在 EventBus 和 InterceptorChain 之上，提供统一的 RPC 调用接口。
 
 ### 4.1 完整的代理接口
 

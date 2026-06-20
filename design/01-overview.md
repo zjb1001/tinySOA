@@ -268,3 +268,15 @@ tinySOA 是一个基于 SOME/IP 协议的轻量级面向服务架构（SOA）框
 - [配置管理](06-configuration.md)
 - [监控与追踪](07-monitoring-tracing.md)
 - [最佳实践](08-best-practices.md)
+- [内部事件模型](09-internal-event-model.md)
+
+> 实现状态与设计-代码差距分析见 **[implementation-gap.md](implementation-gap.md)**。
+
+参考以下详细设计文档：
+- [核心组件设计](02-core-components.md)
+- [API 设计](03-api-design.md)
+- [生命周期管理](04-lifecycle.md)
+- [拦截器与插件](05-interceptors-plugins.md)
+- [配置管理](06-configuration.md)
+- [监控与追踪](07-monitoring-tracing.md)
+- [最佳实践](08-best-practices.md)

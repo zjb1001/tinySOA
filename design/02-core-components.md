@@ -196,13 +196,13 @@ class ConnectionManager:
 
 ## 3. 服务发现 (Service Discovery)
 
-### 2.1 职责
+### 3.1 职责
 - 与 SOME/IP SD 协议集成
 - 自动发现网络上的服务
 - 维护远程服务的可用性
 - 处理服务订阅
 
-### 2.2 核心流程
+### 3.2 核心流程
 
 ```
 ┌──────────────┐
@@ -227,7 +227,7 @@ class ConnectionManager:
 └──────────────────┘
 ```
 
-### 2.3 接口设计
+### 3.3 接口设计
 
 ```python
 class ServiceDiscovery:
@@ -272,21 +272,21 @@ class ServiceDiscovery:
         """订阅事件组"""
 ```
 
-### 2.4 实现要点
+### 3.4 实现要点
 - 封装 ServiceDiscoveryProtocol
 - 自动处理 OfferService/StopOfferService
 - 维护服务发现缓存
 - TTL 过期自动清理
 
-## 3. 服务代理 (Service Proxy)
+## 4. 服务代理 (Service Proxy)
 
-### 3.1 职责
+### 4.1 职责
 - 提供远程服务的本地代理
 - 处理请求序列化和响应反序列化
 - 实现负载均衡和故障转移
 - 管理连接池
 
-### 3.2 代理模式
+### 4.2 代理模式
 
 ```python
 class ServiceProxy:
@@ -336,7 +336,7 @@ class ServiceProxy:
         return self.serializer.deserialize(response.payload)
 ```
 
-### 3.3 动态代理生成
+### 4.3 动态代理生成
 
 ```python
 def create_proxy(service_interface: Type) -> ServiceProxy:
@@ -357,9 +357,9 @@ def create_proxy(service_interface: Type) -> ServiceProxy:
     # 使用元类或类装饰器动态生成代理方法
 ```
 
-### 3.4 完整的负载均衡设计
+### 4.4 完整的负载均衡设计
 
-#### 3.4.1 负载均衡接口
+#### 4.4.1 负载均衡接口
 
 ```python
 class HealthScore:
@@ -428,7 +428,7 @@ class LoadBalancer(ABC):
         pass
 ```
 
-#### 3.4.2 内置负载均衡实现
+#### 4.4.2 内置负载均衡实现
 
 ```python
 class RoundRobinLoadBalancer(LoadBalancer):
@@ -610,7 +610,7 @@ class InstanceFilters:
         return f
 ```
 
-#### 3.4.3 故障转移策略
+#### 4.4.3 故障转移策略
 
 ```python
 class FailoverStrategy:
@@ -684,15 +684,15 @@ class FailoverStrategy:
         )
 ```
 
-## 4. 事件总线 (Event Bus)
+## 5. 事件总线 (Event Bus)
 
-### 4.1 职责
+### 5.1 职责
 - 实现发布/订阅模式
 - 事件路由和分发
 - 支持事件过滤
 - 事件持久化（可选）
 
-### 4.2 核心概念
+### 5.2 核心概念
 
 ```python
 @dataclass
@@ -714,7 +714,7 @@ class EventFilter(Protocol):
     def __call__(self, event: Event) -> bool: ...
 ```
 
-### 4.3 接口设计
+### 5.3 接口设计
 
 ```python
 class EventBus:
@@ -747,15 +747,15 @@ class EventBus:
         """订阅事件组"""
 ```
 
-### 4.4 实现要点
+### 5.4 实现要点
 - 基于 SimpleEventgroup 封装
 - 支持本地和远程事件
 - 异步事件分发
 - 事件队列缓冲
 
-## 5. 生命周期管理器 (Lifecycle Manager)
+## 6. 生命周期管理器 (Lifecycle Manager)
 
-### 5.1 服务生命周期
+### 6.1 服务生命周期
 
 ```
 ┌─────────┐
@@ -783,7 +783,7 @@ class EventBus:
 └─────────┘
 ```
 
-### 5.2 接口设计
+### 6.2 接口设计
 
 ```python
 class LifecycleManager:
@@ -828,9 +828,9 @@ class SOAService(ABC):
         """清理资源"""
 ```
 
-## 6. 拦截器链 (Interceptor Chain)
+## 7. 拦截器链 (Interceptor Chain)
 
-### 6.1 拦截器模式
+### 7.1 拦截器模式
 
 ```python
 class Interceptor(ABC):
@@ -873,7 +873,7 @@ class InterceptorChain:
         """执行拦截器链"""
 ```
 
-### 6.2 内置拦截器
+### 7.2 内置拦截器
 
 ```python
 class LoggingInterceptor(Interceptor):
@@ -892,9 +892,9 @@ class CircuitBreakerInterceptor(Interceptor):
     """熔断器拦截器"""
 ```
 
-## 7. 配置管理器 (Configuration Manager)
+## 8. 配置管理器 (Configuration Manager)
 
-### 7.3 配置结构
+### 8.3 配置结构
 
 ```yaml
 # tinysoa.yaml
@@ -927,7 +927,7 @@ monitoring:
   metrics_port: 9090
 ```
 
-### 7.4 接口设计
+### 8.4 接口设计
 
 ```python
 class ConfigurationManager:
@@ -944,9 +944,9 @@ class ConfigurationManager:
         """监听配置变化"""
 ```
 
-## 8. 监控与度量 (Monitoring & Metrics)
+## 9. 监控与度量 (Monitoring & Metrics)
 
-### 8.1 度量指标
+### 9.1 度量指标
 
 ```python
 @dataclass
@@ -976,7 +976,7 @@ class MetricsCollector:
         """导出 Prometheus 格式"""
 ```
 
-### 8.2 健康检查
+### 9.2 健康检查
 
 ```python
 class HealthCheck:
@@ -991,7 +991,7 @@ class HealthCheck:
         """注册健康检查项"""
 ```
 
-## 9. 模块依赖关系
+## 10. 模块依赖关系
 
 ```
 LifecycleManager
@@ -1005,7 +1005,7 @@ InterceptorChain      Monitoring
 ConfigurationManager
 ```
 
-## 10. 线程模型
+## 11. 线程模型
 
 - 单线程异步模型（asyncio event loop）
 - 所有 I/O 操作异步化

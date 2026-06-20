@@ -1,6 +1,7 @@
-# tinySOA Test Optimization Framework
+# tinySOA Testing Guide
 
-> Status: proposal — implement incrementally as the suite grows.
+> 原位置: `design/testing-framework.md` — 于 2026-06-20 移至项目根目录，因其内容为运行时现状报告 + CI 提案，非设计文档。
+> Status: living document — update as the suite grows.
 
 ## 1. Current State (layered structure, 2026-06-20)
 

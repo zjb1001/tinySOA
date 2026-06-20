@@ -67,11 +67,9 @@ my_tinysoa_app/
 2. **编写业务逻辑**
    ```python
    async def on_start(self):
-       # 初始化资源
        self.logger.info("Calc service started")
    
    async def on_stop(self):
-       # 释放资源
        pass
    ```
 
@@ -79,14 +77,13 @@ my_tinysoa_app/
    ```python
    @pytest.mark.asyncio
    async def test_add():
-       service = await CalcService.start()
+       service = await CalcService.start(bind=("0.0.0.0", 30490))
        result = await service.call(0x0001, args=(3, 5))
        assert result == 8
        await service.stop()
    ```
 
-4. **配置基础拦截器**
-   - 日志、指标、追踪
+4. **配置基础拦截器** — 日志、指标、追踪
    ```yaml
    interceptors:
      - type: logging
@@ -119,9 +116,7 @@ my_tinysoa_app/
 
 4. **故障恢复测试**
    ```python
-   # 模拟实例故障
    await service_instance1.stop()
-   # 验证客户端自动转移到instance2
    assert await client.call(method_id) == expected_result
    ```
 
@@ -129,11 +124,11 @@ my_tinysoa_app/
 
 1. **完整的拦截器链**
    ```python
-   client = await Proxy(
+   client = await ServiceProxy(
        service_id=0x1234,
        interceptors=[
-           tracing_interceptor(),     # Jaeger集成
-           metrics_interceptor(),     # Prometheus
+           tracing_interceptor(),
+           metrics_interceptor(),
            retry_interceptor(max_attempts=3),
            rate_limit_interceptor(rate="100/s"),
            circuit_breaker_interceptor(),
@@ -192,12 +187,16 @@ my_tinysoa_app/
 
 ## 6. 完整示例代码片段
 
-### 6.1 服务端示例（Phase 1 MVP）
+
+## 6. 完整示例代码片段
+
+设计目标 API：`@Service` / `@rpc` 声明式服务定义 + `ServiceProxy` 客户端代理。完整可运行示例见项目 `examples/` 目录。
+
+### 6.1 服务端示例
 
 ```python
 # services/calc_service.py
 from tinysoa import Service, rpc
-from datetime import datetime
 
 @Service(
     service_id=0x1234,
@@ -208,22 +207,11 @@ from datetime import datetime
 class CalcService:
     
     async def on_start(self):
-        """服务启动时调用"""
         self.logger.info("CalcService initialized")
-        self.start_time = datetime.now()
     
     @rpc(method_id=0x0001, idempotent=True)
     async def add(self, a: int, b: int) -> int:
-        """
-        加法操作
-        
-        Args:
-            a: 第一个数
-            b: 第二个数
-        
-        Returns:
-            和
-        """
+        """加法操作 — 幂等，支持重试"""
         return a + b
     
     @rpc(method_id=0x0002, idempotent=True)
@@ -233,22 +221,18 @@ class CalcService:
     
     @rpc(method_id=0x0003, idempotent=False)
     async def log_operation(self, operation: str, result: int) -> None:
-        """记录操作（非幂等，不支持重试）"""
+        """记录操作 — 非幂等，不支持重试"""
         self.logger.info(f"{operation}: {result}")
     
     async def on_stop(self):
-        """服务停止时调用"""
-        uptime = datetime.now() - self.start_time
-        self.logger.info(f"CalcService stopped. Uptime: {uptime}")
+        self.logger.info("CalcService stopped")
 
 # 启动服务
 async def main():
     svc = CalcService()
     await svc.start(bind=("0.0.0.0", 30490))
     try:
-        # 发出就绪通知
-        await svc.publish_ready()
-        # 阻塞直到收到停止信号
+        await svc.publish_ready()  # 通知就绪
         await svc.wait_for_termination()
     finally:
         await svc.stop()
@@ -257,130 +241,97 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### 6.2 客户端示例（Phase 1 MVP）
+### 6.2 客户端示例
 
 ```python
 # clients/calc_client.py
-from tinysoa import Proxy, ServiceProxyConfig, context
+from tinysoa import ServiceProxy, ServiceProxyConfig, context
 
 async def main():
-    # 创建代理
     config = ServiceProxyConfig(
         service_id=0x1234,
         version=(1, 0),
         timeout_ms=500,
-        max_retries=2
+        max_retries=2,
+        lb_policy="latency_weighted",
+        interceptors=[
+            metrics_interceptor(),
+            tracing_interceptor(),
+            retry_interceptor()
+        ]
     )
     
-    calc_proxy = await Proxy(config).connect()
+    calc = await ServiceProxy(config).connect()
     
     try:
-        # 基础RPC调用
-        result = await calc_proxy.call(method_id=0x0001, args=(3, 5))
-        print(f"3 + 5 = {result}")  # 输出: 3 + 5 = 8
+        # 基础 RPC 调用
+        result = await calc.call(method_id=0x0001, args=(3, 5))
+        print(f"3 + 5 = {result}")  # 8
         
         # 带上下文的调用
         with context.timeout(1000), context.metadata({"user_id": "alice"}):
-            result = await calc_proxy.call(method_id=0x0002, args=(6, 7))
-            print(f"6 * 7 = {result}")  # 输出: 6 * 7 = 42
+            result = await calc.call(method_id=0x0002, args=(6, 7))
+            print(f"6 * 7 = {result}")  # 42
         
-        # 非幂等方法（不支持重试）
-        await calc_proxy.call(method_id=0x0003, args=("addition",), kwargs={"result": 8})
+        # 单向异步调用
+        await calc.call_oneway(method_id=0x0003, args=("addition",), kwargs={"result": 8})
         
     finally:
-        await calc_proxy.close()
+        await calc.close()
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### 6.3 拦截器自定义示例（Phase 3）
+### 6.3 自定义拦截器示例
 
 ```python
 # common/interceptors.py
 from tinysoa import Interceptor, Context, Request, Response
-import json
-import hashlib
-
-class CustomLoggingInterceptor(Interceptor):
-    """自定义日志拦截器"""
-    
-    async def before_request(self, ctx: Context, request: Request) -> Request:
-        self.logger.info(
-            f"[{ctx.trace_id}] RPC starting",
-            extra={
-                "service": hex(ctx.service_id),
-                "method": hex(ctx.method_id),
-                "client": ctx.client_address[0]
-            }
-        )
-        ctx.start_time = time.time()
-        return request
-    
-    async def after_response(self, ctx: Context, response: Response) -> Response:
-        elapsed_ms = (time.time() - ctx.start_time) * 1000
-        self.logger.info(
-            f"[{ctx.trace_id}] RPC completed",
-            extra={"elapsed_ms": elapsed_ms, "status": response.status}
-        )
-        return response
+import json, hashlib, time
 
 class RequestSigningInterceptor(Interceptor):
-    """请求签名拦截器 (安全)"""
+    """请求签名拦截器"""
     
     def __init__(self, secret: str):
         self.secret = secret
     
     async def before_request(self, ctx: Context, request: Request) -> Request:
-        # 计算请求签名
         payload_bytes = json.dumps(request.args).encode()
         signature = hashlib.sha256(payload_bytes + self.secret.encode()).hexdigest()
-        
-        # 加入元数据
         ctx.metadata["X-Signature"] = signature
-        
         return request
     
     async def on_error(self, ctx: Context, error: Exception) -> Optional[Response]:
         if isinstance(error, AuthenticationError):
-            # 认证错误直接返回401
             return Response(status=401, payload=b"Invalid signature")
         raise error
 
 class CachingInterceptor(Interceptor):
-    """结果缓存拦截器"""
+    """结果缓存拦截器 — 仅缓存幂等方法"""
     
     def __init__(self, ttl_seconds: int = 60):
         self.cache = {}
         self.ttl = ttl_seconds
     
     async def before_request(self, ctx: Context, request: Request) -> Optional[Response]:
-        # 只缓存幂等方法
         if not ctx.method_metadata.get('idempotent', False):
             return request
-        
-        # 生成缓存键
         cache_key = f"{ctx.service_id}:{ctx.method_id}:{json.dumps(request.args)}"
-        
-        # 查询缓存
         if cache_key in self.cache:
-            cached_result, timestamp = self.cache[cache_key]
-            if time.time() - timestamp < self.ttl:
-                self.logger.debug(f"Cache hit: {cache_key}")
-                return Response(status=200, payload=cached_result)
-        
+            cached, ts = self.cache[cache_key]
+            if time.time() - ts < self.ttl:
+                return Response(status=200, payload=cached)
         return request
     
     async def after_response(self, ctx: Context, response: Response) -> Response:
-        # 缓存成功的响应
         if response.status == 200:
             cache_key = f"{ctx.service_id}:{ctx.method_id}:{json.dumps(request.args)}"
             self.cache[cache_key] = (response.payload, time.time())
-        
         return response
 ```
 
-### 6.4 依赖管理示例（Phase 2）
+### 6.4 依赖管理示例
 
 ```python
 # services/payment_service.py
@@ -391,52 +342,30 @@ from tinysoa import Service, ServiceDependency, rpc
     instance_id=0x0001,
     version=(1, 0),
     depends_on=[
-        # 依赖认证服务 (必需，启动前等待)
-        ServiceDependency(
-            service_id=0x1111,
-            version=(1, 0),
-            required=True,
-            timeout_s=10
-        ),
-        # 依赖日志服务 (可选，启动前可不可用)
-        ServiceDependency(
-            service_id=0x2222,
-            required=False
-        )
+        ServiceDependency(service_id=0x1111, version=(1, 0), required=True, timeout_s=10),
+        ServiceDependency(service_id=0x2222, required=False)
     ]
 )
 class PaymentService:
     
     async def on_start(self):
-        """启动时等待依赖"""
         self.logger.info("Waiting for dependencies...")
-        
-        # 等待必需依赖
-        await self._wait_for_dependency(0x1111)
-        
-        self.logger.info("All required dependencies satisfied, service ready")
+        await self._wait_for_dependency(0x1111)  # 必需依赖
+        self.logger.info("All required dependencies satisfied")
     
     @rpc(method_id=0x0001, idempotent=True)
     async def process_payment(self, amount: float, account_id: str) -> bool:
-        """处理支付 (需要先通过认证服务)"""
-        
-        # 调用认证服务验证账户
         try:
             auth_result = await self.call_dependency(
-                service_id=0x1111,
-                method_id=0x0001,
-                args=(account_id,),
-                timeout=2.0
+                service_id=0x1111, method_id=0x0001,
+                args=(account_id,), timeout=2.0
             )
         except DependencyUnavailableError:
-            # 依赖服务不可用 → 进入降级模式
             self.logger.warning("Auth service unavailable, using cached policy")
             auth_result = await self._use_cached_policy(account_id)
         
         if not auth_result:
             return False
-        
-        # 执行支付逻辑
         return await self._do_payment(amount, account_id)
 ```
 
@@ -453,56 +382,26 @@ service:
 network:
   bind: "0.0.0.0:30490"
   multicast: "239.0.0.1:30490"
-  multicast_interval: 3.0
 
 client:
   timeout_ms: 500
   retries: 2
   lb_policy: latency_weighted
-  lb_weights:
-    availability: 0.4
-    latency: 0.4
-    load: 0.2
 
 interceptors:
-  client:
-    - name: tracing
-      enabled: true
-      config:
-        provider: opentelemetry
-        sampler:
-          type: adaptive
-          rate: 0.01
-        exporter: jaeger
-        jaeger_endpoint: "http://jaeger:14268/api/traces"
-    
-    - name: metrics
-      enabled: true
-      config:
-        prometheus_port: 9090
-    
-    - name: retry
-      enabled: true
-      config:
-        max_attempts: 3
-        backoff_factor: 0.1
-    
-    - name: rate_limit
-      enabled: true
-      config:
-        rate: "1000/s"
-        burst: 100
-    
-    - name: circuit_breaker
-      enabled: true
-      config:
-        failure_threshold: 50
-        timeout_seconds: 30
+  - name: tracing
+    enabled: true
+    config:
+      sampler: { type: adaptive, rate: 0.01 }
+  - name: metrics
+    enabled: true
+  - name: retry
+    enabled: true
+    config: { max_attempts: 3, backoff_factor: 0.1 }
 
 logging:
   level: info
   format: json
-  output: stdout
 
 monitoring:
   enabled: true

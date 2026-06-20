@@ -4,6 +4,8 @@
 
 ### 1.1 核心接口定义
 
+拦截器使用三方法接口，贯穿请求-响应-异常的完整生命周期：
+
 - **接口定义**：
   ```python
   class Interceptor:
@@ -224,6 +226,7 @@ class InterceptorIdempotency:
 - Retry 必须在最外层或次外层 (Tracing 之内)
 
 ## 2. 内置拦截器（完整接口与语义）
+
 
 ### 2.1 日志 (Logging) 拦截器
 
@@ -575,7 +578,7 @@ interceptors:
       backoff_factor: 0.5
 ```
 
-## 4. 执行顺序与链构建
+## 5. 执行顺序与链构建
 
 **推荐的拦截器顺序** (客户端):
 

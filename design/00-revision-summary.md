@@ -1,8 +1,10 @@
 # tinySOA 架构设计优化总结
 
+> **最新修订 (2026-06-20)**: 完成设计文档与代码实现的对齐 — 修复 ServiceStatus FSM 描述、添加 Implementation Status 标注、修正章节编号、移动 testing-framework.md 至根目录。
+
 ## 📋 修改清单
 
-本次优化涉及 **9个文档** 的系统改进，共 **7个关键优化方向**。
+本次优化涉及 **9个文档** 的系统改进，共 **7个关键优化方向**。后续修订 (2026-06-20) 新增设计-代码对齐工作。
 
 ### ✅ 已完成的改进
 
@@ -292,5 +294,66 @@
 
 - 09-internal-event-model.md: 内部事件全详解
 - 08-best-practices.md #6: 完整的可运行示例
+- 02-core-components.md #1.5: 一致性模型深入
+- 05-interceptors-plugins.md #1.2: 拦截器执行流程图
+
+---
+
+---
+
+## 🔧 设计-代码对齐修订 (2026-06-20)
+
+### 核心原则确立
+
+**设计文档描述目标架构（What & Why），独立于当前实现（How）。**
+
+基于此原则完成两轮修订：
+- **第一轮**：将实现信息注入设计文档，导致文档被污染
+- **第二轮（最终）**：移除设计文档中的所有实现信息，集中到 `implementation-gap.md`
+
+### 第二轮修订清单（最终状态）
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| **implementation-gap.md** | **新建** | 设计→实现映射的唯一信息源。含 4 个 ADR、9 个子系统的实现映射表、收敛路线图、文档对照速查 |
+| **01-overview.md** | 还原 | 移除 Implementation Status 大节和实际架构图；还原为纯设计路线图和成功标准。末尾添加链接到 implementation-gap.md |
+| **02-core-components.md** | 还原 | 移除 Implementation Status 标记；移除 §10.2 实际依赖图；保留 §10 设计依赖图。章节编号修正保留 |
+| **03-api-design.md** | 还原 | 移除 Implementation Status、§3.1 当前命令式 API、§4.1-4.2 实际调用模式；恢复 @Service/ServiceProxy 为纯设计目标 |
+| **04-lifecycle.md** | 还原 | 移除 Implementation Status、当前 FSM 实现细节、"当前实现"/"规划"标注；恢复为目标 FSM 纯设计描述 |
+| **05-interceptors-plugins.md** | 还原 | 移除 §1.1 中间件接口实现细节和代码示例；恢复三方法接口为设计的核心定义。移除各节的实现状态标注 |
+| **08-best-practices.md** | 还原 | 移除 Implementation Status；§6 代码示例从实际 API 还原为设计目标 API (@Service/@rpc/Proxy)；Phase 工作流恢复为声明式 API 描述 |
+| **06/07/09** | 无变更 | 这些文档从未被污染 — 始终是纯设计文档 |
+| **testing-framework.md** | 已移出 | 移至根目录 `TESTING.md`（第一次修订完成） |
+| **00-revision-summary.md** | 本文件 | 记录两轮修订的完整历程 |
+
+### 设计文档当前状态
+
+```
+design/
+├── 00-revision-summary.md       ← 本文 (修订历史)
+├── implementation-gap.md        ← 设计↔实现映射 (NEW)
+├── 01-overview.md               ← 纯设计：架构、Phase路线图、成功标准
+├── 02-core-components.md        ← 纯设计：注册中心、SD、代理、LB、事件总线
+├── 03-api-design.md              ← 纯设计：@Service/@rpc/ServiceProxy API
+├── 04-lifecycle.md              ← 纯设计：FSM、依赖管理、事件驱动生命周期
+├── 05-interceptors-plugins.md   ← 纯设计：三方法接口、8拦截器、插件系统
+├── 06-configuration.md          ← 纯设计：配置结构、版本管理、灰度部署
+├── 07-monitoring-tracing.md     ← 纯设计：TraceContext、SLO、告警
+├── 08-best-practices.md         ← 纯设计：目录结构、开发流程、设计API示例
+└── 09-internal-event-model.md   ← 纯设计：内部事件总线、12事件类型
+```
+
+### 架构决策记录 (ADR) — 见 implementation-gap.md
+
+- **ADR-001**: EventBus ABC 作为核心通信抽象
+- **ADR-002**: 中间件风格拦截器作为 Phase 1 实现，三方法接口为 Phase 3 设计目标
+- **ADR-003**: 协议无关性为一级设计约束
+- **ADR-004**: @Service 作为 Container 的高层封装
+
+## 📚 参考资源
+
+- implementation-gap.md: 设计→实现映射 + ADR + 收敛路线图
+- 09-internal-event-model.md: 内部事件全详解
+- 08-best-practices.md #6: 完整的 API 设计示例
 - 02-core-components.md #1.5: 一致性模型深入
 - 05-interceptors-plugins.md #1.2: 拦截器执行流程图

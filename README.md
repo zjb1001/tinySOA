@@ -68,6 +68,146 @@ export PYTHONPATH=$PWD/src
 export PYTHONPATH=$PWD/src:$PWD/third_party/pysomeip/src
 ```
 
+## 构建你自己的 SOA 应用
+
+这一节从零开始，用 tinySOA 搭建一个完整的服务。完整可运行代码见 `examples/echo_service/app.py`。
+
+### 第一步：定义服务
+
+每个 SOA 应用的核心是一个 `Service` ——它描述你的服务叫什么、提供哪些方法、发布哪些事件、部署在哪里：
+
+```python
+from tinysoa.core.model import Service, Method, Event, Endpoint, Protocol
+
+service = Service(
+    name="greeter",                     # 服务名
+    id=1,                               # 唯一 ID
+    version="1.0.0",
+    methods=[Method("say_hello", 1)],   # 提供的方法
+    events=[Event("hello_said", 1)],    # 发布的事件
+    endpoints=[Endpoint("localhost", 9000, Protocol.TCP)],
+)
+```
+
+`Service` 自带 **状态机**：`INIT → REGISTERED → RUNNING → STOPPED → TERMINATED`，非法跳转会抛出 `StateError`。
+
+### 第二步：选择事件总线
+
+tinySOA 提供三种事件总线，**换协议栈只需换一个实现**，上层代码不变：
+
+| 总线 | 适用场景 | 依赖 |
+|---|---|---|
+| `InMemoryEventBus` | 单进程、开发调试、单元测试 | 无 |
+| `TCPEventBusClient/Server` | 多进程、跨机器 | 无 |
+| `SomeIPEventBus` | 车载/嵌入式 SOME/IP 协议 | pysomeip（`third_party/`） |
+
+以最简的 `InMemoryEventBus` 为例：
+
+```python
+from tinysoa.eventbus import InMemoryEventBus
+from tinysoa.eventbus.message import EventMessage
+
+bus = InMemoryEventBus()
+
+# 订阅事件
+async def on_hello_said(msg: EventMessage):
+    print(f"事件到达: {msg.payload}")
+
+bus.subscribe("greeter.hello_said", on_hello_said)
+
+# 发布事件
+await bus.publish(EventMessage(
+    topic="greeter.hello_said",
+    payload={"greeting": "hello, world!"},
+))
+```
+
+### 第三步：添加拦截器（横切关注点）
+
+拦截器按 **优先级**（数字越小越先执行）形成责任链，在业务逻辑前后插入日志、指标、追踪等：
+
+```python
+from tinysoa.spi.interceptor import (
+    InterceptorChain, InvocationContext,
+    LoggingInterceptor, MetricsInterceptor, TracingInterceptor,
+)
+
+chain = InterceptorChain(terminal=your_business_logic)
+chain.add_interceptor(TracingInterceptor())   # 优先级 1：注入 trace_id
+chain.add_interceptor(MetricsInterceptor())   # 优先级 5：记录耗时
+chain.add_interceptor(LoggingInterceptor())   # 优先级 10：打印入参/出参
+```
+
+自定义拦截器只需实现 `intercept(ctx, next_invoker)` ——在 `next_invoker()` 前后插入自己的逻辑。
+
+### 第四步：叠加弹性策略
+
+三种策略可以**组合嵌套**，形成弹性调用栈：
+
+```python
+from tinysoa.policies import RetryPolicy, TimeoutPolicy, CircuitBreaker
+from tinysoa.policies.retry import exponential_backoff, full_jitter
+
+retry   = RetryPolicy(max_attempts=3, backoff=exponential_backoff(0.05))
+timeout = TimeoutPolicy(timeout_seconds=1.0)
+breaker = CircuitBreaker(failure_threshold=3, recovery_timeout=2.0)
+
+# 组合：retry → breaker → timeout → 拦截器链
+async def resilient_invoke(ctx):
+    return await retry.run(
+        lambda: breaker.call(
+            lambda: timeout.run(
+                lambda: chain.invoke(ctx)
+            )
+        )
+    )
+```
+
+- **RetryPolicy**：失败后按 backoff 策略重试（支持指数退避 + 随机抖动）
+- **TimeoutPolicy**：超时自动取消
+- **CircuitBreaker**：连续失败 N 次后熔断（OPEN），等待恢复窗口后半开试探（HALF_OPEN），成功则恢复（CLOSED）
+
+### 第五步：生命周期管理
+
+用 `Container` 注册服务，用 `LifecycleManager` 管理启停：
+
+```python
+from tinysoa.runtime.container import Container
+from tinysoa.runtime.lifecycle import LifecycleManager
+
+container = Container()
+container.add_service(service)
+
+lifecycle = LifecycleManager(container)
+lifecycle.start_service(service.id)     # REGISTERED → RUNNING
+# ... 你的业务逻辑 ...
+lifecycle.stop_service(service.id)      # RUNNING → STOPPED
+lifecycle.terminate_service(service.id) # → TERMINATED
+```
+
+### 完整可运行示例
+
+把以上五步串起来就是 `examples/echo_service/app.py`——一个自包含的 echo 服务，跑通了 Service → EventBus → InterceptorChain → Retry/CircuitBreaker/Timeout → 事件投递的完整链路：
+
+```bash
+PYTHONPATH=src python examples/echo_service/app.py
+```
+
+```text
+13:55:14 | echo service started (service_id=1)
+13:55:14 | invoking echo service...
+13:55:14 | event received: {'echo': 'Hello Async World', ...}
+13:55:14 | response: {'echo': 'Hello Async World', ...}
+13:55:14 | echo service terminated
+```
+
+### 下一步
+
+- 看 `examples/interceptor_auth/app.py` 了解如何写**自定义拦截器**（认证 + 优先级排序 + 短路）
+- 看 `examples/pubsub_multi/` 了解 **TCPEventBus 多进程发布/订阅**
+- 看 `examples/cross_process_someip/` 了解 **SOME/IP 跨进程通信**
+- 看 `design/` 目录了解架构设计细节
+
 ## 快速开始
 - Echo 服务示例：
 ```bash

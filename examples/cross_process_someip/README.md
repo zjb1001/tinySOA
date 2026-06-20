@@ -84,7 +84,7 @@ traffic (the publisher's `Offer` and the subscriber's `Find`/`Subscribe`/`Ack`)
 that bridges the two processes below.
 
 ```bash
-make tmux            # 或： ./tmux_demo.sh
+make tmux            # 或： ./tmux.sh
 # Ctrl+b d 分离（后台保留）；彻底关闭： make tmux-kill
 ```
 

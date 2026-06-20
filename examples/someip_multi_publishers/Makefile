@@ -152,7 +152,7 @@ smoke: ## bounded 冒烟 (每传感器 N 条，聚合收集)
 # ---- tmux ---------------------------------------------------------------
 
 tmux: ## tmux 四窗格可视化 (上: aggregator, 下: temp | humid | pressure)
-	@bash $(SELF_DIR)tmux_demo.sh
+	@bash $(SELF_DIR)tmux.sh
 
 tmux-kill: ## 关闭 tmux 会话
 	@tmux kill-session -t tinysoa-multisensor 2>/dev/null && echo ">> 已关闭" || echo ">> 无会话"

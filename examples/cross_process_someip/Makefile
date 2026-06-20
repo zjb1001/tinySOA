@@ -116,7 +116,7 @@ pytest-fast: ## 只跑无网络的快速测试
 	@cd $(TINYSOA_DIR) && PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/test_cross_process_someip.py -v -m "not slow"
 
 tmux: ## tmux 三窗格可视化（上=SD监控 下左=Publisher 下右=Subscriber）
-	@bash $(SELF_DIR)tmux_demo.sh
+	@bash $(SELF_DIR)tmux.sh
 
 tmux-kill: ## 关闭 tmux 演示会话
 	@tmux kill-session -t tinysoa-someip 2>/dev/null && echo ">> 已关闭 tmux 会话 tinysoa-someip" || echo ">> 无会话"

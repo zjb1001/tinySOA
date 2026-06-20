@@ -126,7 +126,7 @@ smoke: ## bounded 冒烟
 # ---- tmux ---------------------------------------------------------------
 
 tmux: ## tmux 双窗格可视化 (上: Publisher, 下: Subscriber)
-	@bash $(SELF_DIR)tmux_demo.sh
+	@bash $(SELF_DIR)tmux.sh
 
 tmux-kill: ## 关闭 tmux 会话
 	@tmux kill-session -t tinysoa-echo 2>/dev/null && echo ">> 已关闭" || echo ">> 无会话"

@@ -30,6 +30,8 @@ SOMEIP   := $(SELF_DIR)someip_multi_publishers/
 MULTIPUB := $(SELF_DIR)multi_publishers_single_sub/
 ECHOSOMEIP := $(SELF_DIR)someip_echo/
 XPROCESS   := $(SELF_DIR)cross_process_someip/
+VDP       := $(SELF_DIR)vehicle_data_platform/
+CALC      := $(SELF_DIR)someip_method_call/
 
 # =========================================================================
 # Help
@@ -41,6 +43,7 @@ help: ## 显示帮助
 	@echo "=== 单进程 Demo ==="
 	@echo "  make echo                      跑 echo_service 自包含 demo"
 	@echo "  make interceptors              跑 interceptor_auth 自包含 demo (拦截器+Auth)"
+	@echo "  make vdp                       跑车辆数据平台 demo (Container + Lifecycle + Health)"
 	@echo ""
 	@echo "=== SOME/IP Echo 双进程 ($(ECHOSOMEIP)) ==="
 	@echo "  make tmux-echo-someip          tmux 双窗格 (pub | sub)"
@@ -61,6 +64,15 @@ help: ## 显示帮助
 	@echo "  make run-xprocess              编排器前台一次测试"
 	@echo "  make start-xprocess            后台常驻"
 	@echo "  make tmux-xprocess             tmux 三窗格 (SD 监控 | pub | sub)"
+	@echo ""
+	@echo "=== 车辆数据平台 (工程实践) ($(VDP)) ==="
+	@echo "  make vdp                       前台运行 (Container + Lifecycle + Health)"
+	@echo "  make smoke-vdp                  冒烟测试 (dry-run + 5s run)"
+	@echo "  make tmux-vdp                   tmux 双窗格可视化"
+	@echo ""
+	@echo "=== SOME/IP Calculator RPC ($(CALC)) ==="
+	@echo "  make smoke-calc                 冒烟测试 (Server → Client 3× RPC)"
+	@echo "  make tmux-calc                  tmux 双窗格可视化"
 	@echo ""
 	@echo "=== 全局 ==="
 	@echo "  make start-all                 后台启动所有示例组"
@@ -88,6 +100,31 @@ interceptors: ## 跑 interceptor_auth demo (自定义拦截器 + Auth, 自包含
 	@cd $(TINYSOA_DIR) && PYTHONPATH=$(PYTHONPATH) \
 	  $(PYTHON) $(SELF_DIR)interceptor_auth/app.py
 	@echo ">> interceptor_auth 完成"
+
+# =========================================================================
+# 车辆数据平台 (单进程、工程实践)
+# =========================================================================
+.PHONY: vdp smoke-vdp tmux-vdp
+vdp: ## 前台运行车辆数据平台 (Container + Lifecycle + Health)
+	@cd $(TINYSOA_DIR) && PYTHONPATH=$(PYTHONPATH) \
+	  $(PYTHON) $(VDP)app.py --duration 15 --health-interval 3.0 --log-level INFO
+	@echo ">> vdp 完成"
+
+smoke-vdp: ## 车辆数据平台冒烟测试
+	@$(MAKE) -C $(VDP) smoke
+
+tmux-vdp: ## tmux 可视化车辆数据平台
+	@$(MAKE) -C $(VDP) tmux
+
+# =========================================================================
+# SOME/IP Calculator RPC (双进程、method call)
+# =========================================================================
+.PHONY: calc smoke-calc tmux-calc
+smoke-calc: ## SOME/IP Calculator RPC 冒烟测试
+	@$(MAKE) -C $(CALC) smoke
+
+tmux-calc: ## tmux 可视化 SOME/IP Calculator RPC
+	@$(MAKE) -C $(CALC) tmux
 
 # =========================================================================
 # 子组委托
@@ -193,7 +230,7 @@ status-all: ## 查看所有示例组状态
 	@echo "=== multi_pub_sub ==="; $(MAKE) --no-print-directory -C $(MULTIPUB) status
 	@echo "=== cross_process  ==="; $(MAKE) --no-print-directory -C $(XPROCESS) status
 
-smoke-all: smoke-echo-someip smoke-pubsub smoke-someip smoke-multipub ## 顺序跑所有冒烟测试
+smoke-all: smoke-echo-someip smoke-pubsub smoke-someip smoke-multipub smoke-vdp smoke-calc ## 顺序跑所有冒烟测试
 	@echo ">> 所有冒烟测试完成"
 
 clean-all: stop-all ## 停止全部进程并清理产物
@@ -202,5 +239,7 @@ clean-all: stop-all ## 停止全部进程并清理产物
 	@$(MAKE) -C $(SOMEIP) clean 2>/dev/null || true
 	@$(MAKE) -C $(MULTIPUB) clean 2>/dev/null || true
 	@$(MAKE) -C $(XPROCESS) clean 2>/dev/null || true
+	@$(MAKE) -C $(VDP) clean 2>/dev/null || true
+	@$(MAKE) -C $(CALC) clean 2>/dev/null || true
 	@rm -f $(SELF_DIR)*.pid $(SELF_DIR)*.log
 	@echo ">> 全局清理完成"

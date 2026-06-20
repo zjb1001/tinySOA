@@ -12,7 +12,7 @@
 #   └──────────────────┴──────────────────┴─────────────────┘
 #
 # 用法：
-#   ./tmux_demo.sh                     # attach 进 tmux
+#   ./tmux.sh                     # attach 进 tmux
 #   分离(后台保留): Ctrl+b d           # 彻底关闭: tmux kill-session -t tinysoa-multisensor
 #   环境变量: SESSION / LOG_LEVEL
 #

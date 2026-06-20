@@ -136,7 +136,7 @@ smoke: ## 端到端冒烟测试 (自动生命周期)
 # ---- tmux ---------------------------------------------------------------
 
 tmux: ## tmux 四窗格可视化 (上:server|sub1 / 下:pub|sub2)
-	@bash $(SELF_DIR)tmux_demo.sh
+	@bash $(SELF_DIR)tmux.sh
 
 tmux-kill: ## 关闭 tmux 会话
 	@tmux kill-session -t tinysoa-pubsub 2>/dev/null && echo ">> 已关闭" || echo ">> 无会话"

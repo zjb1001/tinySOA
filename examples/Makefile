@@ -28,7 +28,8 @@ LOG_LEVEL ?= INFO
 PUBSUB   := $(SELF_DIR)pubsub_multi/
 SOMEIP   := $(SELF_DIR)someip_multi_publishers/
 MULTIPUB := $(SELF_DIR)multi_publishers_single_sub/
-XPROCESS := $(SELF_DIR)cross_process_someip/
+ECHOSOMEIP := $(SELF_DIR)someip_echo/
+XPROCESS   := $(SELF_DIR)cross_process_someip/
 
 # =========================================================================
 # Help
@@ -40,6 +41,10 @@ help: ## 显示帮助
 	@echo "=== 单进程 Demo ==="
 	@echo "  make echo                      跑 echo_service 自包含 demo"
 	@echo "  make interceptors              跑 interceptor_auth 自包含 demo (拦截器+Auth)"
+	@echo ""
+	@echo "=== SOME/IP Echo 双进程 ($(ECHOSOMEIP)) ==="
+	@echo "  make tmux-echo-someip          tmux 双窗格 (pub | sub)"
+	@echo "  make smoke-echo-someip          bounded 冒烟 (publisher N 条 → subscriber)"
 	@echo ""
 	@echo "=== TCPEventBus 发布/订阅 ($(PUBSUB)) ==="
 	@echo "  make tmux-pubsub               tmux 四窗格 (server|sub1 / pub|sub2)"
@@ -104,6 +109,22 @@ stop-pubsub: ## 停止 pubsub_multi 后台
 logs-pubsub: ## tail pubsub_multi 日志
 	@$(MAKE) -C $(PUBSUB) logs
 
+# --- SOME/IP Echo 双进程 ---
+tmux-echo-someip: ## tmux 可视化 SOME/IP Echo
+	@$(MAKE) -C $(ECHOSOMEIP) tmux
+
+smoke-echo-someip: ## SOME/IP Echo bounded 冒烟
+	@$(MAKE) -C $(ECHOSOMEIP) smoke
+
+start-echo-someip: ## 后台启动 SOME/IP Echo
+	@$(MAKE) -C $(ECHOSOMEIP) start
+
+stop-echo-someip: ## 停止 SOME/IP Echo 后台
+	@$(MAKE) -C $(ECHOSOMEIP) stop
+
+logs-echo-someip: ## tail SOME/IP Echo 日志
+	@$(MAKE) -C $(ECHOSOMEIP) logs
+
 # --- SOME/IP 多传感器 ---
 tmux-someip: ## tmux 可视化 SOME/IP 多传感器
 	@$(MAKE) -C $(SOMEIP) tmux
@@ -155,10 +176,11 @@ logs-xprocess: ## tail cross_process_someip 日志
 
 .PHONY: start-all stop-all status-all smoke-all clean-all
 
-start-all: start-pubsub start-someip start-multipub ## 后台启动所有示例组
+start-all: start-echo-someip start-pubsub start-someip start-multipub ## 后台启动所有示例组
 	@echo ">> 所有示例组已后台启动"
 
 stop-all: ## 停止全部示例组
+	@$(MAKE) -C $(ECHOSOMEIP) stop 2>/dev/null || true
 	@$(MAKE) -C $(PUBSUB) stop 2>/dev/null || true
 	@$(MAKE) -C $(SOMEIP) stop 2>/dev/null || true
 	@$(MAKE) -C $(MULTIPUB) stop 2>/dev/null || true
@@ -171,10 +193,11 @@ status-all: ## 查看所有示例组状态
 	@echo "=== multi_pub_sub ==="; $(MAKE) --no-print-directory -C $(MULTIPUB) status
 	@echo "=== cross_process  ==="; $(MAKE) --no-print-directory -C $(XPROCESS) status
 
-smoke-all: smoke-pubsub smoke-someip smoke-multipub ## 顺序跑所有冒烟测试
+smoke-all: smoke-echo-someip smoke-pubsub smoke-someip smoke-multipub ## 顺序跑所有冒烟测试
 	@echo ">> 所有冒烟测试完成"
 
 clean-all: stop-all ## 停止全部进程并清理产物
+	@$(MAKE) -C $(ECHOSOMEIP) clean 2>/dev/null || true
 	@$(MAKE) -C $(PUBSUB) clean 2>/dev/null || true
 	@$(MAKE) -C $(SOMEIP) clean 2>/dev/null || true
 	@$(MAKE) -C $(MULTIPUB) clean 2>/dev/null || true

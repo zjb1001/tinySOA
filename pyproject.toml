@@ -1,0 +1,25 @@
+[tool.pytest.ini_options]
+testpaths = ["tests/unit", "tests/integration", "tests/examples"]
+pythonpath = ["src", "third_party/pysomeip/src"]
+asyncio_mode = "auto"
+addopts = ["-ra", "--strict-markers", "--color=yes"]
+markers = [
+    "unit: fast, no network, no side-effects (always-run CI gate)",
+    "integration: multi-component, may use loopback but no external processes",
+    "slow: >5 s or spawns real OS subprocesses",
+    "network: opens real sockets (TCP / SOME/IP); needs clean loopback",
+    "someip_loopback: SOME/IP SD + unicast on loopback; requires clean SD env",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.8"
+check_untyped_defs = true
+ignore_missing_imports = true

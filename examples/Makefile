@@ -19,8 +19,7 @@ SHELL := /bin/bash
 
 SELF_DIR    := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/
 TINYSOA_DIR := $(abspath $(SELF_DIR)..)
-REPO_ROOT   := $(abspath $(SELF_DIR)../..)
-PYTHONPATH  := $(REPO_ROOT)/src:$(TINYSOA_DIR)/src
+PYTHONPATH  := $(TINYSOA_DIR)/src:$(TINYSOA_DIR)/third_party/pysomeip/src
 PYTHON      ?= python3
 
 LOG_LEVEL ?= INFO
@@ -42,9 +41,9 @@ help: ## 显示帮助
 	@echo "  make echo                      跑 echo_service 自包含 demo"
 	@echo "  make interceptors              跑 interceptor_auth 自包含 demo (拦截器+Auth)"
 	@echo ""
-	@echo "=== TCP pub/sub ($(PUBSUB)) ==="
+	@echo "=== TCPEventBus 发布/订阅 ($(PUBSUB)) ==="
 	@echo "  make tmux-pubsub               tmux 四窗格 (server|sub1 / pub|sub2)"
-	@echo "  make smoke-pubsub              端到端冒烟"
+	@echo "  make smoke-pubsub              端到端冒烟 (TCPEventBus)"
 	@echo ""
 	@echo "=== SOME/IP 多传感器 ($(SOMEIP)) ==="
 	@echo "  make tmux-someip               tmux 四窗格 (agg / temp|humid|pressure)"

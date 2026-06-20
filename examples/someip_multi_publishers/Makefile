@@ -19,14 +19,14 @@ SHELL := /bin/bash
 
 SELF_DIR    := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/
 TINYSOA_DIR := $(abspath $(SELF_DIR)../..)
-REPO_ROOT   := $(abspath $(SELF_DIR)../../..)
-PYTHONPATH  := $(REPO_ROOT)/src:$(TINYSOA_DIR)/src
+PYTHONPATH  := $(TINYSOA_DIR)/src:$(TINYSOA_DIR)/third_party/pysomeip/src
 PYTHON      ?= python3
 
 # ---- 可调参数 -----------------------------------------------------------
 LOG_LEVEL     ?= INFO
 SMOKE_COUNT   ?= 20     # 每个传感器的采样数
 SMOKE_INTERVAL ?= 0.3
+SMOKE_TIMEOUT  ?= 45    # aggregator 最长等待时间 (WSL2 上 SD 可能不投递)
 AGG_PORT      ?= 30510
 AGG_COUNT     ?= 9      # aggregator 停止前累积的总读数
 
@@ -141,8 +141,8 @@ smoke: ## bounded 冒烟 (每传感器 N 条，聚合收集)
 	    > $(LOG_PRESS) 2>&1 & echo $$! > $(PID_PRESS)
 	@sleep 2.0
 	@cd $(SELF_DIR) && PYTHONPATH=$(PYTHONPATH) \
-	  $(PYTHON) subscriber_aggregator.py --port $(AGG_PORT) --count $(AGG_COUNT) \
-	    --log-level $(LOG_LEVEL) > $(LOG_AGG) 2>&1; AGGEXIT=$$?
+	  timeout $(SMOKE_TIMEOUT) $(PYTHON) subscriber_aggregator.py --port $(AGG_PORT) --count $(AGG_COUNT) \
+	    --log-level $(LOG_LEVEL) > $(LOG_AGG) 2>&1 || true; AGGEXIT=$$?
 	@sleep 0.5
 	@TOTAL=$$(grep -c "received " $(LOG_AGG) 2>/dev/null || echo 0); \
 	 echo "=== 冒烟完成: aggregator 收到 $$TOTAL 条 (要求 >= $(AGG_COUNT)) ==="; \

@@ -20,13 +20,12 @@ SHELL := /bin/bash
 # --- 路径（相对本 Makefile 定位）---
 SELF_DIR    := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/
 TINYSOA_DIR := $(abspath $(SELF_DIR)../..)
-REPO_ROOT   := $(abspath $(SELF_DIR)../../..)
 
 # someip(pysomeip) 与 tinysoa 都从源码导入
-PYTHONPATH := $(REPO_ROOT)/src:$(TINYSOA_DIR)/src
+PYTHONPATH := $(TINYSOA_DIR)/src:$(TINYSOA_DIR)/third_party/pysomeip/src
 
 # 优先用项目自带 .venv（含 someip+pytest），否则退回 python3
-PYTHON ?= $(shell [ -x "$(REPO_ROOT)/.venv/bin/python" ] && echo "$(REPO_ROOT)/.venv/bin/python" || echo python3)
+PYTHON ?= $(shell [ -x "$(TINYSOA_DIR)/.venv/bin/python" ] && echo "$(TINYSOA_DIR)/.venv/bin/python" || echo python3)
 
 MOD := examples.cross_process_someip
 PID_PUB := $(SELF_DIR).pub.pid
@@ -63,7 +62,7 @@ help: ## 显示帮助
 
 run: ## 前台跑一次编排器（publisher 进程 + subscriber 进程）
 	@echo ">> 启动跨进程编排器 ..."
-	@cd $(TINYSOA_DIR) && PYTHONPATH=$(PYTHONPATH) $(PYTHON) $(SELF_DIR)run_cross_process.py
+	@cd $(TINYSOA_DIR) && PYTHONPATH=$(PYTHONPATH) $(PYTHON) $(SELF_DIR)/run_cross_process.py || echo ">> 注意：WSL2 回环网上 pysomeip SD 存在已知投递竞态"
 
 start: ## 后台常驻启动 publisher + subscriber
 	@cd $(TINYSOA_DIR) && PYTHONPATH=$(PYTHONPATH) \

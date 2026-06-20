@@ -27,10 +27,10 @@ from pathlib import Path
 # --- locate the repo + source roots relative to this file -------------------
 # .../tinySOA/examples/cross_process_someip/run_cross_process.py
 HERE = Path(__file__).resolve().parent
-TINYSOA_DIR = HERE.parents[1]            # .../tinySOA
-REPO_ROOT = HERE.parents[2]              # .../pysomeip (repo root)
-SOMEIP_SRC = REPO_ROOT / "src"           # pysomeip package source
+TINYSOA_DIR = HERE.parents[1]            # .../tinySOA (repo root)
 TINYSOA_SRC = TINYSOA_DIR / "src"        # tinysoa package source
+# pysomeip is vendored as a git submodule under third_party/.
+SOMEIP_SRC = TINYSOA_DIR / "third_party" / "pysomeip" / "src"
 
 # Both packages must be importable from source, no install.
 ENV_PYTHONPATH = os.pathsep.join(

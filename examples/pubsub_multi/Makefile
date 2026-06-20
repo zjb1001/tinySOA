@@ -1,4 +1,4 @@
-# Makefile —— 管理 TCP pub/sub 多进程示例的启动、测试与退出。
+# Makefile —— 管理 TCPEventBus 发布/订阅多进程示例的启动、测试与退出。
 #
 # 本文件位于: tinySOA/examples/pubsub_multi/Makefile
 # tinysoa + someip 从源码解析，无需 pip 安装。
@@ -18,8 +18,7 @@ SHELL := /bin/bash
 
 SELF_DIR    := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/
 TINYSOA_DIR := $(abspath $(SELF_DIR)../..)
-REPO_ROOT   := $(abspath $(SELF_DIR)../../..)
-PYTHONPATH  := $(REPO_ROOT)/src:$(TINYSOA_DIR)/src
+PYTHONPATH  := $(TINYSOA_DIR)/src:$(TINYSOA_DIR)/third_party/pysomeip/src
 PYTHON      ?= python3
 
 # ---- 可调参数 -----------------------------------------------------------
@@ -41,7 +40,7 @@ LOG_PUB := $(SELF_DIR).pub.log
 .PHONY: help start stop status logs logs-srv logs-sub smoke tmux tmux-kill clean
 
 help: ## 显示帮助
-	@echo "TCP pub/sub 多进程示例 —— Makefile"
+	@echo "TCPEventBus 发布/订阅多进程示例 —— Makefile"
 	@echo ""
 	@echo "  make start           后台启动 server + subscriber (常驻)"
 	@echo "  make stop            停止后台进程"
@@ -111,7 +110,7 @@ logs-sub: ## 只看 subscriber 日志
 # ---- 端到端冒烟 ---------------------------------------------------------
 
 smoke: ## 端到端冒烟测试 (自动生命周期)
-	@echo "=== TCP pub/sub 冒烟开始 ==="
+	@echo "=== TCPEventBus 冒烟开始 ==="
 	@echo "  HOST=$(HOST) PORT=$(PORT) COUNT=$(PUB_COUNT)"
 	@cd $(TINYSOA_DIR) && PYTHONPATH=$(PYTHONPATH) \
 	  exec $(PYTHON) $(SELF_DIR)server.py --host $(HOST) --port $(PORT) \
@@ -122,9 +121,9 @@ smoke: ## 端到端冒烟测试 (自动生命周期)
 	    --port $(PORT) --log-level $(LOG_LEVEL) > $(LOG_SUB) 2>&1 & echo $$! > $(PID_SUB)
 	@sleep 0.6
 	@cd $(TINYSOA_DIR) && PYTHONPATH=$(PYTHONPATH) \
-	  $(PYTHON) $(SELF_DIR)publisher.py --host $(HOST) --port $(PORT) \
+	  timeout 30 $(PYTHON) $(SELF_DIR)publisher.py --host $(HOST) --port $(PORT) \
 	    --count $(PUB_COUNT) --interval $(PUB_INTERVAL) --log-level $(LOG_LEVEL) \
-	    > $(LOG_PUB) 2>&1; PEXIT=$$?
+	    > $(LOG_PUB) 2>&1 || true; PEXIT=$$?
 	@sleep 0.6
 	@RECEIVED=$$(grep -c "subscriber=$(SUB_ID_1)" $(LOG_SUB) 2>/dev/null || echo 0); \
 	 if [ "$$RECEIVED" -eq "$(PUB_COUNT)" ]; then \

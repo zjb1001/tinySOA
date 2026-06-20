@@ -62,7 +62,7 @@ description: tinySOA / SOA 教学助手 — 面向初学者的轻量服务架构
   - 配置：[config/loader.py](tinySOA/src/tinysoa/config/loader.py)、[config/schema.py](tinySOA/src/tinysoa/config/schema.py)
   - 示例：[examples/echo_service/](tinySOA/examples/echo_service/)、[examples/pubsub_multi/](tinySOA/examples/pubsub_multi/)、[examples/someip_multi_publishers/](tinySOA/examples/someip_multi_publishers/)
   - 设计文档：[design/](design/)（00-09）
-  - 计划：[tinySOA/plan.md](tinySOA/plan.md)、[tinySOA/optimise.md](tinySOA/optimise.md)
+  - 计划：[tinySOA/optimise.md](tinySOA/optimise.md)
 - 当调用路径或控制流重要时，使用本仓库文件追踪实际的执行路径。
 - 当需要展示错误示例或检验学生理解时，可借助 `/tinysoa-review` 的 SOA 正确性视角生成题目或点评。
 - 当学生准备动手实践时，引导至 `/tinysoa-lab` 进行对应实验。
@@ -124,7 +124,7 @@ tinySOA 框架层
 SOME/IP 协议层（pysomeip）/ asyncio 传输（UDP/TCP）
 ```
 
-**关键设计原则**：interface-first（先 ABC 再实现）、asyncio-first（核心 API 全异步）、MVP 驱动（见 [tinySOA/plan.md](tinySOA/plan.md) 的 4 阶段路线）。
+**关键设计原则**：interface-first（先 ABC 再实现）、asyncio-first（核心 API 全异步）、MVP 驱动。
 
 **重要**：`someip` 是 tinySOA 支持的**协议栈之一**，通过 `SomeIPEventBus` 实现 `EventBus` ABC，与 `InMemoryEventBus`、`TCPEventBusServer/Client` 并列。换协议栈 = 换一个 `EventBus` 实现，框架上层不变。
 

@@ -20,10 +20,11 @@ set -euo pipefail
 
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TINYSOA_DIR="$(cd "$SELF_DIR/../.." && pwd)"
-REPO_ROOT="$(cd "$SELF_DIR/../../.." && pwd)"
-export PYTHONPATH="$REPO_ROOT/src:$TINYSOA_DIR/src"
+# tinySOA is now a standalone repo (split from pysomeip).
+# pysomeip is vendored under third_party/pysomeip/.
+export PYTHONPATH="$TINYSOA_DIR/src:$TINYSOA_DIR/third_party/pysomeip/src"
 PY="python3"
-[ -x "$REPO_ROOT/.venv/bin/python" ] && PY="$REPO_ROOT/.venv/bin/python"
+[ -x "$TINYSOA_DIR/.venv/bin/python" ] && PY="$TINYSOA_DIR/.venv/bin/python"
 
 SESSION="${SESSION:-tinysoa-multisensor}"
 LOG_LEVEL="${LOG_LEVEL:-INFO}"

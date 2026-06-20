@@ -587,9 +587,6 @@ class SomeIPEventBus(EventBus):
             
         except Exception as e:
             self.logger.error(f"Failed to subscribe to {topic}: {e}", exc_info=True)
-            
-        except Exception as e:
-            self.logger.error(f"Failed to subscribe to {topic}: {e}", exc_info=True)
 
     async def _stop_subscription(self, mapping: SomeIPTopicMapping) -> None:
         """Stop SOME/IP subscription through Service Discovery."""

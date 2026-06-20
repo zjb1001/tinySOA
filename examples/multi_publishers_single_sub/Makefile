@@ -20,8 +20,7 @@ SHELL := /bin/bash
 SELF_DIR    := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/
 PUBSUB_DIR  := $(abspath $(SELF_DIR)../pubsub_multi)/
 TINYSOA_DIR := $(abspath $(SELF_DIR)../..)
-REPO_ROOT   := $(abspath $(SELF_DIR)../../..)
-PYTHONPATH  := $(REPO_ROOT)/src:$(TINYSOA_DIR)/src
+PYTHONPATH  := $(TINYSOA_DIR)/src:$(TINYSOA_DIR)/third_party/pysomeip/src
 PYTHON      ?= python3
 
 # ---- 可调参数 -----------------------------------------------------------

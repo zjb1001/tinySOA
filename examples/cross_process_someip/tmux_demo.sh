@@ -19,10 +19,11 @@ set -euo pipefail
 
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TINYSOA_DIR="$(cd "$SELF_DIR/../.." && pwd)"
-REPO_ROOT="$(cd "$SELF_DIR/../../.." && pwd)"
-export PYTHONPATH="$REPO_ROOT/src:$TINYSOA_DIR/src"
+# tinySOA is now a standalone repo (split from pysomeip).
+# pysomeip is vendored under third_party/pysomeip/.
+export PYTHONPATH="$TINYSOA_DIR/src:$TINYSOA_DIR/third_party/pysomeip/src"
 PY="python3"
-[ -x "$REPO_ROOT/.venv/bin/python" ] && PY="$REPO_ROOT/.venv/bin/python"
+[ -x "$TINYSOA_DIR/.venv/bin/python" ] && PY="$TINYSOA_DIR/.venv/bin/python"
 
 SESSION="${SESSION:-tinysoa-someip}"
 PUB_COUNT="${PUB_COUNT:-30}"
@@ -33,7 +34,7 @@ SUB_TIMEOUT="${SUB_TIMEOUT:-40}"
 command -v tmux >/dev/null || { echo "需要先安装 tmux（apt install tmux）"; exit 1; }
 
 # 各窗格命令
-TOP_CMD="$PY $REPO_ROOT/tools/monitor-sd.py 127.0.0.1 224.224.224.245 30490"
+TOP_CMD="$PY $TINYSOA_DIR/third_party/pysomeip/tools/monitor-sd.py 127.0.0.1 224.224.224.245 30490"
 PUB_CMD="cd $TINYSOA_DIR && PYTHONPATH=$PYTHONPATH $PY -m examples.cross_process_someip.publisher $PUB_COUNT $PUB_INTERVAL"
 SUB_CMD="cd $TINYSOA_DIR && PYTHONPATH=$PYTHONPATH $PY -m examples.cross_process_someip.subscriber $SUB_WANT $SUB_TIMEOUT"
 

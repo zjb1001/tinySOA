@@ -33,9 +33,11 @@ LOG_LEVEL ?= INFO
 LOCAL_ECHO := $(SELF_DIR)local_echo_service/
 LOCAL_INTERCEPTORS := $(SELF_DIR)local_interceptor_auth/
 LOCAL_VDP := $(SELF_DIR)local_vehicle_platform/
+LOCAL_TOPOLOGIES := $(SELF_DIR)local_pubsub_topologies/
 TCP_ONE := $(SELF_DIR)tcp_pubsub_one_to_many/
 TCP_MANY := $(SELF_DIR)tcp_pubsub_many_to_one/
 SOMEIP_ECHO := $(SELF_DIR)someip_pubsub_echo/
+SOMEIP_ONE_MANY := $(SELF_DIR)someip_pubsub_one_to_many/
 SOMEIP_MULTI := $(SELF_DIR)someip_pubsub_multi_sensor/
 SOMEIP_CALL := $(SELF_DIR)someip_method_call/
 SOMEIP_XPROC := $(SELF_DIR)someip_cross_process/
@@ -51,6 +53,7 @@ help: ## 显示帮助
 	@echo "  make echo                       本地 echo 服务"
 	@echo "  make interceptors               拦截器 + Auth"
 	@echo "  make vdp                        车辆数据平台"
+	@echo "  make topologies                 1v1 / 1vN / Nv1 本地拓扑矩阵"
 	@echo ""
 	@echo "=== TCP broker（BROKER 拓扑） ==="
 	@echo "  make tmux-pubsub                tmux：一发多收"
@@ -61,6 +64,8 @@ help: ## 显示帮助
 	@echo "=== SOME/IP（PEER 拓扑） ==="
 	@echo "  make tmux-echo-someip           tmux：pub/sub echo"
 	@echo "  make smoke-echo-someip          冒烟：pub/sub echo"
+	@echo "  make tmux-someip-one-to-many    tmux：一发多收"
+	@echo "  make smoke-someip-one-to-many   冒烟：一发多收"
 	@echo "  make tmux-someip                tmux：多传感器"
 	@echo "  make smoke-someip               冒烟：多传感器"
 	@echo "  make run-xprocess               前台：跨进程编排"
@@ -83,7 +88,7 @@ help: ## 显示帮助
 # =========================================================================
 # 本地单进程
 # =========================================================================
-.PHONY: echo interceptors vdp smoke-vdp tmux-vdp
+.PHONY: echo interceptors vdp topologies smoke-vdp tmux-vdp
 echo: ## 本地 echo 服务
 	@cd $(REPO_ROOT) && PYTHONPATH=$(PYTHONPATH) \
 	  $(PYTHON) -m examples.local_echo_service.app
@@ -96,6 +101,9 @@ vdp: ## 车辆数据平台
 	@cd $(REPO_ROOT) && PYTHONPATH=$(PYTHONPATH) \
 	  $(PYTHON) -m examples.local_vehicle_platform.app \
 	  --duration 15 --health-interval 3.0 --log-level $(LOG_LEVEL)
+
+topologies: ## 1v1 / 1vN / Nv1 本地拓扑矩阵
+	@$(MAKE) -C $(LOCAL_TOPOLOGIES) run
 
 smoke-vdp: ## 车辆数据平台冒烟
 	@$(MAKE) -C $(LOCAL_VDP) smoke
@@ -144,6 +152,8 @@ logs-pubsub-many:
 # SOME/IP pub/sub
 # =========================================================================
 .PHONY: tmux-echo-someip smoke-echo-someip start-echo-someip stop-echo-someip logs-echo-someip \
+        tmux-someip-one-to-many smoke-someip-one-to-many start-someip-one-to-many \
+        stop-someip-one-to-many logs-someip-one-to-many \
         tmux-someip smoke-someip start-someip stop-someip logs-someip \
         run-xprocess tmux-xprocess start-xprocess stop-xprocess logs-xprocess
 tmux-echo-someip:
@@ -156,6 +166,17 @@ stop-echo-someip:
 	@$(MAKE) -C $(SOMEIP_ECHO) stop
 logs-echo-someip:
 	@$(MAKE) -C $(SOMEIP_ECHO) logs
+
+tmux-someip-one-to-many:
+	@$(MAKE) -C $(SOMEIP_ONE_MANY) tmux
+smoke-someip-one-to-many:
+	@$(MAKE) -C $(SOMEIP_ONE_MANY) smoke
+start-someip-one-to-many:
+	@$(MAKE) -C $(SOMEIP_ONE_MANY) start
+stop-someip-one-to-many:
+	@$(MAKE) -C $(SOMEIP_ONE_MANY) stop
+logs-someip-one-to-many:
+	@$(MAKE) -C $(SOMEIP_ONE_MANY) logs
 
 tmux-someip:
 	@$(MAKE) -C $(SOMEIP_MULTI) tmux
@@ -183,11 +204,12 @@ logs-xprocess:
 # 全局
 # =========================================================================
 .PHONY: start-all stop-all status-all smoke-all clean-all
-start-all: start-echo-someip start-pubsub start-pubsub-many start-someip start-xprocess ## 后台启动所有常驻组
+start-all: start-echo-someip start-someip-one-to-many start-pubsub start-pubsub-many start-someip start-xprocess ## 后台启动所有常驻组
 	@echo ">> 所有可常驻示例组已后台启动"
 
 stop-all: ## 停止全部示例组
 	@$(MAKE) -C $(SOMEIP_ECHO) stop 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_ONE_MANY) stop 2>/dev/null || true
 	@$(MAKE) -C $(TCP_ONE) stop 2>/dev/null || true
 	@$(MAKE) -C $(TCP_MANY) stop 2>/dev/null || true
 	@$(MAKE) -C $(SOMEIP_MULTI) stop 2>/dev/null || true
@@ -198,19 +220,22 @@ status-all: ## 查看全部示例组状态
 	@echo "=== tcp_pubsub_one_to_many ==="; $(MAKE) --no-print-directory -C $(TCP_ONE) status
 	@echo "=== tcp_pubsub_many_to_one ==="; $(MAKE) --no-print-directory -C $(TCP_MANY) status
 	@echo "=== someip_pubsub_echo ==="; $(MAKE) --no-print-directory -C $(SOMEIP_ECHO) status
+	@echo "=== someip_pubsub_one_to_many ==="; $(MAKE) --no-print-directory -C $(SOMEIP_ONE_MANY) status
 	@echo "=== someip_pubsub_multi_sensor ==="; $(MAKE) --no-print-directory -C $(SOMEIP_MULTI) status
 	@echo "=== someip_cross_process ==="; $(MAKE) --no-print-directory -C $(SOMEIP_XPROC) status
 
-smoke-all: echo interceptors smoke-echo-someip smoke-pubsub smoke-pubsub-many smoke-someip smoke-vdp smoke-calc run-xprocess ## 顺序跑稳定冒烟组
+smoke-all: echo interceptors topologies smoke-echo-someip smoke-someip-one-to-many smoke-pubsub smoke-pubsub-many smoke-someip smoke-vdp smoke-calc run-xprocess ## 顺序跑稳定冒烟组
 	@echo ">> 所有冒烟测试完成"
 
 clean-all: stop-all ## 停止全部进程并清理产物
 	@$(MAKE) -C $(LOCAL_ECHO) clean 2>/dev/null || true
 	@$(MAKE) -C $(LOCAL_INTERCEPTORS) clean 2>/dev/null || true
 	@$(MAKE) -C $(LOCAL_VDP) clean 2>/dev/null || true
+	@$(MAKE) -C $(LOCAL_TOPOLOGIES) clean 2>/dev/null || true
 	@$(MAKE) -C $(TCP_ONE) clean 2>/dev/null || true
 	@$(MAKE) -C $(TCP_MANY) clean 2>/dev/null || true
 	@$(MAKE) -C $(SOMEIP_ECHO) clean 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_ONE_MANY) clean 2>/dev/null || true
 	@$(MAKE) -C $(SOMEIP_MULTI) clean 2>/dev/null || true
 	@$(MAKE) -C $(SOMEIP_CALL) clean 2>/dev/null || true
 	@$(MAKE) -C $(SOMEIP_XPROC) clean 2>/dev/null || true

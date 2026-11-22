@@ -293,18 +293,17 @@ class VehicleDataPlatform:
             rpm = max(600, min(7000, rpm + (50 if rpm < 2000 else -30)))
             temp = max(70.0, min(110.0, temp + (0.5 if temp < 95 else -0.3)))
 
-            await self.event_bus.publish(
-                EventMessage(
-                    topic=f"vehicle.{svc.name}.rpm_changed",
-                    payload={"rpm": rpm, "unit": "rpm"},
-                )
+            rpm_message = EventMessage(
+                topic=f"vehicle.{svc.name}.rpm_changed",
+                payload={"rpm": rpm, "unit": "rpm"},
             )
-            await self.event_bus.publish(
-                EventMessage(
-                    topic=f"vehicle.{svc.name}.temperature_changed",
-                    payload={"temperature": round(temp, 1), "unit": "celsius"},
-                )
+            await self.event_bus.publish(rpm_message)
+
+            temperature_message = EventMessage(
+                topic=f"vehicle.{svc.name}.temperature_changed",
+                payload={"temperature": round(temp, 1), "unit": "celsius"},
             )
+            await self.event_bus.publish(temperature_message)
             await asyncio.sleep(1.0)
 
     async def simulate_transmission(self, stop_event: asyncio.Event) -> None:
@@ -328,12 +327,11 @@ class VehicleDataPlatform:
                 new_gear = 5
             if new_gear != current_gear:
                 current_gear = new_gear
-                await self.event_bus.publish(
-                    EventMessage(
-                        topic=f"vehicle.{svc.name}.gear_changed",
-                        payload={"gear": current_gear, "rpm": rpm},
-                    )
+                gear_message = EventMessage(
+                    topic=f"vehicle.{svc.name}.gear_changed",
+                    payload={"gear": current_gear, "rpm": rpm},
                 )
+                await self.event_bus.publish(gear_message)
                 logger.debug("[Transmission] gear=%d @ rpm=%d", current_gear, rpm)
 
         sub = self.event_bus.subscribe("vehicle.EngineService.rpm_changed", on_rpm)
@@ -373,17 +371,17 @@ class VehicleDataPlatform:
 
     async def _update_display(self, state: Dict[str, object]) -> None:
         """仪表盘显示更新（模拟 CAN 总线上的仪表盘帧）。"""
-        await self.event_bus.publish(
-            EventMessage(
-                topic="vehicle.DashboardService.display_updated",
-                payload={
-                    "rpm": state["rpm"],
-                    "temperature": state["temp"],
-                    "gear": state["gear"],
-                    "warning": state.get("temp", 0) > 100,
-                },
-            )
+        payload = {
+            "rpm": state["rpm"],
+            "temperature": state["temp"],
+            "gear": state["gear"],
+            "warning": state.get("temp", 0) > 100,
+        }
+        message = EventMessage(
+            topic="vehicle.DashboardService.display_updated",
+            payload=payload,
         )
+        await self.event_bus.publish(message)
 
     async def simulate_diagnostics(
         self, stop_event: asyncio.Event, interval: float

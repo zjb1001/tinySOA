@@ -92,13 +92,12 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
                 "i": i,
                 "ts": datetime.now().isoformat(),
             }
-            await bus.publish(
-                EventMessage(
-                    topic=args.topic,
-                    payload=payload,
-                    headers={"x-publisher-id": args.publisher_id},
-                )
+            message = EventMessage(
+                topic=args.topic,
+                payload=payload,
+                headers={"x-publisher-id": args.publisher_id},
             )
+            await bus.publish(message)
             logger.info(
                 "published [%s] -> %s: %s", args.publisher_id, args.topic, payload
             )

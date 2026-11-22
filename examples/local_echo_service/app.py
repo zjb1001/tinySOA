@@ -110,13 +110,12 @@ class EchoServiceApp:
         }
         ctx.set_response(Message(payload=result))
 
-        await self.event_bus.publish(
-            EventMessage(
-                topic=ECHO_TOPIC,
-                payload=result,
-                trace_id=ctx.metadata.get("trace_id"),
-            )
+        message = EventMessage(
+            topic=ECHO_TOPIC,
+            payload=result,
+            trace_id=ctx.metadata.get("trace_id"),
         )
+        await self.event_bus.publish(message)
 
     async def _invoke_chain(self, ctx: InvocationContext) -> None:
         await self.chain.invoke(ctx)

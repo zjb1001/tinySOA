@@ -202,17 +202,13 @@ async def run_sensor_publisher(
     try:
         while count <= 0 or sent < count:
             value = spec.sample()
-            await bus.publish(
-                EventMessage(
-                    topic=spec.topic,
-                    payload={
-                        "value": round(value, spec.decimals),
-                        "unit": spec.unit,
-                        "sensor_id": spec.sensor_id,
-                        "location": spec.location,
-                    },
-                )
-            )
+            payload = {
+                "value": round(value, spec.decimals),
+                "unit": spec.unit,
+                "sensor_id": spec.sensor_id,
+                "location": spec.location,
+            }
+            await bus.publish(EventMessage(topic=spec.topic, payload=payload))
             logger.info("published %s: %.2f %s", spec.key, value, spec.unit)
             sent += 1
             await asyncio.sleep(period)

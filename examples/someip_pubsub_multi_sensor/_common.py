@@ -1,4 +1,4 @@
-"""SOME/IP multi-publisher demo — shared configuration and runtime helpers.
+"""SOME/IP multi-publisher demo — shared configuration.
 
 Single source of truth for the three sensor services (temperature / humidity /
 pressure): their SOME/IP identity (service / instance / eventgroup ids), the
@@ -22,8 +22,7 @@ import random
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 
-from tinysoa.eventbus.message import EventMessage
-from tinysoa.eventbus.someip import SomeIPEventBus, SomeIPTopicMapping
+from tinysoa.eventbus import SomeIPServiceBinding, SomeIPTopicMapping
 
 # Loopback address used by every process in this demo.
 LOCAL_IP = "127.0.0.1"
@@ -111,6 +110,19 @@ class SensorSpec:
             major_version=MAJOR_VERSION,
         )
 
+    @property
+    def binding(self) -> SomeIPServiceBinding:
+        """The service binding used by the publisher process."""
+        return SomeIPServiceBinding(
+            name=self.key,
+            service_id=self.service_id,
+            instance_id=INSTANCE_ID,
+            methods={},
+            major_version=MAJOR_VERSION,
+            local_ip=LOCAL_IP,
+            server_port=self.publisher_port,
+        )
+
 
 #: Every sensor in the demo, keyed by a short identifier.
 SENSORS: Dict[str, SensorSpec] = {
@@ -158,66 +170,3 @@ SENSORS: Dict[str, SensorSpec] = {
 SENSOR_MAPPINGS: Dict[str, SomeIPTopicMapping] = {
     s.topic: s.mapping for s in SENSORS.values()
 }
-
-
-async def run_sensor_publisher(
-    spec: SensorSpec,
-    *,
-    count: int = 0,
-    interval: Optional[float] = None,
-    log_level: str = "INFO",
-) -> int:
-    """Publish ``spec`` sensor readings via SOME/IP until interrupted or done.
-
-    Args:
-        spec: which sensor to emulate.
-        count: samples to send; ``<= 0`` means run forever (until SIGINT).
-        interval: override the spec's default cadence (seconds).
-        log_level: logging verbosity.
-
-    Returns:
-        The number of samples actually published.
-    """
-    logger = configure_logging(log_level, name=f"someip.demo.{spec.key}")
-    install_quiet_teardown()
-
-    mappings = {spec.topic: spec.mapping}
-    # is_publisher defaults to True -> this process advertises the service via SD.
-    bus = SomeIPEventBus(
-        mappings, local_ip=LOCAL_IP, publisher_port=spec.publisher_port
-    )
-    period = spec.interval if interval is None else interval
-
-    logger.info(
-        "starting %s (service 0x%04x, instance 0x%04x, port %d)",
-        spec.name,
-        spec.service_id,
-        INSTANCE_ID,
-        spec.publisher_port,
-    )
-    await bus.start()
-    logger.info("SOME/IP stack initialized; waiting for subscribers via SD...")
-
-    sent = 0
-    try:
-        while count <= 0 or sent < count:
-            value = spec.sample()
-            payload = {
-                "value": round(value, spec.decimals),
-                "unit": spec.unit,
-                "sensor_id": spec.sensor_id,
-                "location": spec.location,
-            }
-            await bus.publish(EventMessage(topic=spec.topic, payload=payload))
-            logger.info("published %s: %.2f %s", spec.key, value, spec.unit)
-            sent += 1
-            await asyncio.sleep(period)
-    except KeyboardInterrupt:
-        logger.info("shutdown signal received")
-    except Exception as exc:  # noqa: BLE001 - demo surfaces any publisher failure
-        logger.error("publisher error: %s", exc, exc_info=True)
-    finally:
-        logger.info("stopping %s...", spec.name)
-        await bus.stop()
-        logger.info("%s stopped after %d sample(s)", spec.name, sent)
-    return sent

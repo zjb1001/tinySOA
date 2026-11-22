@@ -5,7 +5,7 @@
   - Custom CorrelationIdInterceptor + built-in AuthInterceptor + custom TimingInterceptor
   - Demonstrates priority ordering, Auth short-circuit, and exception propagation
 - Pub/Sub (one publisher → many subscribers): examples/pubsub_multi/
-  - server.py: TCP EventBus server
+  - server.py: TCP EventBus broker
   - subscriber.py: subscriber process
   - publisher.py: publisher process
 - Pub/Sub (many publishers → one subscriber): examples/multi_publishers_single_sub/

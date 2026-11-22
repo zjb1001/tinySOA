@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """tinySOA TCP EventBus broker (engineering-grade).
 
-Runs a ``TCPEventBusServer`` that fans out published events to every client
-subscribed to a topic. Intended for local demos / dev; the server is not
+Runs a ``TCPEventBusBroker`` that fans out published events to every client
+subscribed to a topic. Intended for local demos / dev; the broker is not
 hardened for production (no auth, backpressure or persistence).
 
 Run (from the ``tinySOA`` directory, tinysoa + someip resolve from source):
@@ -20,7 +20,7 @@ import signal
 import sys
 from typing import Optional, Sequence
 
-from tinysoa.eventbus import TCPEventBusServer
+from tinysoa.eventbus import TCPEventBusBroker
 
 logger = logging.getLogger("tinysoa.example.pubsub.server")
 
@@ -29,10 +29,17 @@ _LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="tinySOA TCP EventBus broker")
-    parser.add_argument("--host", default="127.0.0.1", help="bind address (default: 127.0.0.1)")
-    parser.add_argument("--port", type=int, default=8765, help="listen port (default: 8765)")
     parser.add_argument(
-        "--log-level", default="INFO", choices=_LOG_LEVELS, help="logging verbosity (default: INFO)"
+        "--host", default="127.0.0.1", help="bind address (default: 127.0.0.1)"
+    )
+    parser.add_argument(
+        "--port", type=int, default=8765, help="listen port (default: 8765)"
+    )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=_LOG_LEVELS,
+        help="logging verbosity (default: INFO)",
     )
     return parser.parse_args(argv)
 
@@ -45,18 +52,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         datefmt="%H:%M:%S",
     )
 
-    server = TCPEventBusServer(host=args.host, port=args.port)
+    broker = TCPEventBusBroker(host=args.host, port=args.port)
     try:
-        server.start()
+        broker.start()
     except OSError as exc:
         logger.error("failed to bind %s:%d: %s", args.host, args.port, exc)
         return 1
 
-    logger.info("TCP EventBus server listening on %s:%d", args.host, args.port)
+    logger.info("TCP EventBus broker listening on %s:%d", broker.host, broker.port)
 
     def _graceful(signum: int, _frame) -> None:  # type: ignore[no-untyped-def]
         logger.info("received signal %d, shutting down...", signum)
-        server.stop()
+        broker.stop()
         raise SystemExit(0)
 
     signal.signal(signal.SIGINT, _graceful)
@@ -67,7 +74,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     except SystemExit as exc:
         return int(exc.code) if exc.code is not None else 0
     finally:
-        server.stop()
+        broker.stop()
 
 
 if __name__ == "__main__":

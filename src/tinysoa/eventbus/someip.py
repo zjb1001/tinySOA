@@ -10,7 +10,12 @@ from typing import Dict, Optional, Tuple, Any, List, Callable, Awaitable
 from uuid import uuid4
 from threading import Lock
 
-from tinysoa.eventbus.bus import EventBus, Subscription, EventHandler
+from tinysoa.eventbus.bus import (
+    EventHandler,
+    ManagedEventBus,
+    Subscription,
+    Topology,
+)
 from tinysoa.eventbus.message import EventMessage
 
 # Import pysomeip components
@@ -314,16 +319,22 @@ class SomeIPSubscriber:
                 pass
 
 
-class SomeIPEventBus(EventBus):
+class SomeIPEventBus(ManagedEventBus):
     """
     EventBus implementation over SOME/IP.
-    
+
+    Topology ``PEER``: publishers and subscribers talk directly; endpoints find
+    each other through SOME/IP Service Discovery (no central broker).  The same
+    topology models DDS (RTPS discovery) for a future implementation.
+
     Dual-mode operation:
     - Publisher: Provides SOME/IP services with EventGroups.
     - Subscriber: Discovers and subscribes to remote SOME/IP EventGroups.
-    
+
     Topics map to (service_id, instance_id, eventgroup_id) tuples.
     """
+
+    topology = Topology.PEER
 
     def __init__(
         self,

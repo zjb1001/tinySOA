@@ -3,14 +3,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Set, Awaitable
+from enum import Enum
+from typing import Awaitable, Callable, ClassVar, Dict, List, Optional
 from uuid import UUID, uuid4
-import weakref
-import asyncio
 from threading import Lock
 
 from tinysoa.eventbus.message import EventMessage
-from tinysoa.core.errors import NotFoundError
 
 
 EventHandler = Callable[[EventMessage], Awaitable[None]]
@@ -29,33 +27,97 @@ class Subscription:
         return Subscription(id=uuid4(), topic=topic, handler=handler)
 
 
+class Topology(str, Enum):
+    """Deployment topology of an :class:`EventBus` implementation.
+
+    ``LOCAL``
+        In-process only; no transport and no discovery.
+    ``BROKER``
+        Clients connect through a central broker (e.g. TCP, MQTT).  The
+        broker address is configured by the application.
+    ``PEER``
+        Endpoints exchange messages directly.  Discovery, when present, is a
+        protocol concern (SOME/IP SD, DDS RTPS), not an application concern.
+    """
+
+    LOCAL = "local"
+    BROKER = "broker"
+    PEER = "peer"
+
+
 class EventBus(ABC):
     """Abstract event bus interface for pub/sub messaging."""
-    
+
+    #: Deployment topology; every concrete implementation must declare it.
+    topology: ClassVar[Topology]
+
     @abstractmethod
     async def publish(self, message: EventMessage) -> None:
         """Publish an event message to the bus."""
         raise NotImplementedError
-    
+
     @abstractmethod
     def subscribe(self, topic: str, handler: EventHandler) -> Subscription:
         """Subscribe to a topic and return a subscription token."""
         raise NotImplementedError
-    
+
     @abstractmethod
     def unsubscribe(self, subscription: Subscription) -> None:
         """Unsubscribe using a subscription token."""
         raise NotImplementedError
-    
+
     @abstractmethod
     def get_subscribers_count(self, topic: str) -> int:
-        """Get the number of subscribers for a topic."""
+        """Get the number of *local* subscribers for a topic."""
         raise NotImplementedError
 
 
-class InMemoryEventBus(EventBus):
+class ManagedEventBus(EventBus):
+    """Event bus with an explicit asynchronous lifecycle.
+
+    Transports that open sockets, tasks, or discovery endpoints implement this
+    interface so callers can start and stop them uniformly.  ``stop()`` must be
+    idempotent and safe to call after a failed ``start()``.
+    """
+
+    @abstractmethod
+    async def start(self) -> None:
+        """Open the transport and make the bus ready for pub/sub."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def stop(self) -> None:
+        """Close the transport and release all resources."""
+        raise NotImplementedError
+
+
+class EventBusBroker(ABC):
+    """A process-level broker that relays events between EventBus clients.
+
+    Brokers are only used by ``BROKER``-topology buses.  ``start``/``stop`` are
+    synchronous because they bootstrap a server process (or an in-process
+    helper); request-path operations stay on the :class:`EventBus` interface.
+    """
+
+    topology: ClassVar[Topology] = Topology.BROKER
+
+    @abstractmethod
+    def start(self) -> None:
+        """Bind the broker and begin accepting clients."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def stop(self) -> None:
+        """Stop accepting clients and close all connections."""
+        raise NotImplementedError
+
+
+class InMemoryEventBus(ManagedEventBus):
     """In-memory event bus implementation.
-    
+
+    Topology ``LOCAL``: no transport, no broker.  ``start`` and ``stop`` are
+    no-ops that exist so callers can treat every managed bus uniformly.
+
     Features:
     - Topic-based routing
     - Multiple subscribers per topic
@@ -63,17 +125,25 @@ class InMemoryEventBus(EventBus):
     - Wildcard topic matching (future)
     - Metrics integration
     """
-    
+
+    topology = Topology.LOCAL
+
     def __init__(self, enable_metrics: bool = True):
         self._subscribers: Dict[str, List[Subscription]] = defaultdict(list)
         self._enable_metrics = enable_metrics
         self._lock = Lock()
-        
+
         # Metrics
         self._published_count = 0
         self._delivered_count = 0
         self._error_count = 0
-    
+
+    async def start(self) -> None:
+        """No-op: the in-memory bus has no transport to open."""
+
+    async def stop(self) -> None:
+        """No-op: subscriptions remain valid for the lifetime of the process."""
+
     async def publish(self, message: EventMessage) -> None:
         """Publish a message to all subscribers of its topic."""
         subscribers = list(self._subscribers.get(message.topic, []))
@@ -167,12 +237,12 @@ class TopicMatcher:
 
 
 # Global event bus instance
-_global_event_bus: Optional[InMemoryEventBus] = None
+_global_event_bus: Optional[EventBus] = None
 _bus_lock = Lock()
 
 
-def get_event_bus() -> InMemoryEventBus:
-    """Get the global event bus instance."""
+def get_event_bus() -> EventBus:
+    """Get the global event bus instance (defaults to in-memory)."""
     global _global_event_bus
     if _global_event_bus is None:
         with _bus_lock:
@@ -181,7 +251,7 @@ def get_event_bus() -> InMemoryEventBus:
     return _global_event_bus
 
 
-def set_event_bus(bus: InMemoryEventBus) -> None:
+def set_event_bus(bus: EventBus) -> None:
     """Set a custom global event bus (useful for testing)."""
     global _global_event_bus
     with _bus_lock:

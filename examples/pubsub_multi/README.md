@@ -1,6 +1,9 @@
 # Pub/Sub (multi-process) example
 
-This example demonstrates one publisher and multiple subscribers running as independent processes over a simple TCP EventBus.
+This example demonstrates one publisher and multiple subscribers running as
+independent processes over a TCP EventBus.  Topology is `BROKER`: every client
+connects to the central `TCPEventBusBroker` (started by `server.py`) and never
+talks to another client directly.
 
 ## Prerequisites
 
@@ -8,7 +11,7 @@ This example demonstrates one publisher and multiple subscribers running as inde
 to both source roots (run from the repo root):
 
 ```bash
-export PYTHONPATH="$PWD/src:$PWD/tinySOA/src"
+export PYTHONPATH="$PWD/tinySOA/src:$PWD/tinySOA/third_party/pysomeip/src"
 ```
 
 Every script also accepts `--log-level {DEBUG,INFO,WARNING,ERROR}` and returns
@@ -19,7 +22,7 @@ is unreachable or the port is taken.
 
 Open three terminals and run:
 
-1) Start the EventBus server:
+1) Start the TCP broker:
 
 ```bash
 python tinySOA/examples/pubsub_multi/server.py --host 127.0.0.1 --port 8765

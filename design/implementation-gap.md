@@ -23,8 +23,8 @@
 ### ADR-003: 协议无关性为一级约束
 
 **设计目标**: SOME/IP 协议层硬编码在架构图中。
-**当前实现**: EventBus ABC — 任何传输层实现 4 个方法即可接入。InMemory（测试）、TCP（开发）、SomeIP（生产）三种实现共存。
-**决策**: 协议无关性正确。新协议栈（如 ZeroMQ、DDS）只需实现 `publish`/`subscribe`/`unsubscribe`/`get_subscribers_count`。
+**当前实现**: EventBus ABC — 任何传输层实现 4 个方法即可接入。InMemory（`LOCAL`）、TCP（`BROKER`）、SomeIP（`PEER`）三种实现共存；`Topology` 只描述部署形态，不绑定具体协议。
+**决策**: 协议无关性正确。新协议栈（如 ZeroMQ、DDS）只需实现 `publish`/`subscribe`/`unsubscribe`/`get_subscribers_count` 并声明 `topology`（DDS 归入 `PEER`，与 SOME/IP 同构）。
 
 ### ADR-004: @Service / @rpc 作为 Container 的高层封装
 
@@ -58,10 +58,12 @@
 
 | 设计组件 | 实现状态 | 差距 | 收敛路径 |
 |---------|---------|------|---------|
-| `EventBus` ABC | ✅ 4 抽象方法 | 完美匹配 | — |
-| `InMemoryEventBus` | ✅ | — | — |
-| `SomeIPEventBus` | ✅ SD + eventgroup 映射 | WSL2 loopback 偶发不稳定 | CI 环境（Linux clean loopback）验证 |
-| `TcpEventBus` | ✅ | 设计中无 TCP 设计文档 | 新增 `design/10-tcp-protocol.md` |
+| `EventBus` ABC | ✅ 4 抽象方法 + `topology` | — | — |
+| `ManagedEventBus` | ✅ `async start()/stop()` | — | — |
+| `EventBusBroker` ABC | ✅ `start()/stop()` | 目前只有 TCP 实现 | 后续 broker 拓扑（如 MQTT 客户端对接外部 broker）复用 |
+| `InMemoryEventBus` | ✅ `topology=LOCAL` | — | — |
+| `SomeIPEventBus` | ✅ `topology=PEER` + SD/eventgroup 映射 | WSL2 loopback 偶发不稳定 | CI 环境（Linux clean loopback）验证 |
+| `TCPEventBus` + `TCPEventBusBroker` | ✅ `topology=BROKER`，客户端 asyncio 原生 | 设计中无 TCP 设计文档 | 新增 `design/10-tcp-protocol.md` |
 | `EventMessage` | ✅ | — | — |
 
 ### 2.4 拦截器 (spi/)

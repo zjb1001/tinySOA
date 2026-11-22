@@ -20,6 +20,10 @@
 | `/tinysoa-teach` | tinySOA / SOA 教学助手 | 10 模块课程，Why→What→How→Trap→Connection |
 | `/tinysoa-lab` | 动手实验指导 | 10 个渐进式实验，与 teach 配对 |
 
+> 本地 CI 与 agent flow 不绑定具体 harness：入口是 `make ci` 和
+> `AGENT_CMD='<your agent>' make agent-flow`。详见
+> [`docs/ci-cd.md`](../docs/ci-cd.md) 和 [`docs/agent-flow.md`](../docs/agent-flow.md)。
+
 ## 协作关系
 
 ```
@@ -42,9 +46,10 @@
 tinySOA 框架层
   ServiceRegistry / ServiceInvoker   (api/)   ← ABC 契约
   EventPublisher / EventSubscriber   (api/)
-  EventBus (ABC) ──┬─ InMemoryEventBus      (单进程)
-                   ├─ TCPEventBusServer/Client (开发/演示)
-                   └─ SomeIPEventBus        (生产，基于 pysomeip)  ← 协议栈之一
+  EventBus (ABC) ──┬─ InMemoryEventBus      (LOCAL)
+                   ├─ TCPEventBus + TCPEventBusBroker (BROKER)
+                   │     └─ MessageStream / TCPMessageStream
+                   └─ SomeIPEventBus        (PEER，基于 pysomeip)  ← 协议栈之一
   Container / LifecycleManager       (runtime/)
   Interceptor / InterceptorChain     (spi/)
   Retry / Timeout / CircuitBreaker   (policies/)
@@ -56,7 +61,8 @@ SOME/IP 协议层（pysomeip）/ asyncio 传输（UDP/TCP）
 
 关键事实：
 - **ServiceStatus 状态机**：`INIT → REGISTERED → RUNNING → STOPPED → TERMINATED`，非法跳转抛 `StateError`（`core/model.py`）。
-- **EventBus ABC**（`eventbus/bus.py`）：`publish` / `subscribe` / `unsubscribe` / `get_subscribers_count` 四个抽象方法 —— 这是协议栈的接入缝。
+- **EventBus ABC**（`eventbus/bus.py`）：`publish` / `subscribe` / `unsubscribe` / `get_subscribers_count` 四个抽象方法 —— 这是协议栈的接入缝。`ManagedEventBus` 补 `async start/stop`，`Topology` 声明 `LOCAL/BROKER/PEER`。
+- **TCP 的传输与总线分离**：`TCPEventBus` 只保留 broker 总线语义，`TCPMessageStream` 实现 `MessageStream` transport；`TCPEventBusBroker` 是中心 broker。
 - **SOME/IP 是协议栈之一**：`SomeIPEventBus(EventBus)` 在 `eventbus/someip.py`，把 topic 映射到 SOME/IP eventgroup，复用 pysomeip 的 SD 与 SimpleService。
 - **测试/运行**：pytest + pytest-asyncio；`cd tinySOA && export PYTHONPATH=$PWD/src`；`uvx pytest -q tests`。
 

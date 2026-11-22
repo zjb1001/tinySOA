@@ -1,13 +1,23 @@
 from .message import EventMessage
 from .bus import (
 	EventBus,
-	InMemoryEventBus,
+	EventBusBroker,
 	EventHandler,
+	InMemoryEventBus,
+	ManagedEventBus,
 	Subscription,
+	Topology,
 	get_event_bus,
 	set_event_bus,
 )
-from .tcp import TCPEventBusClient, TCPEventBusServer
+from .stream import MessageStream
+from .tcp import (
+	TCPEventBus,
+	TCPEventBusBroker,
+	TCPEventBusClient,
+	TCPEventBusServer,
+	TCPMessageStream,
+)
 
 # SomeIPEventBus depends on the vendored pysomeip package (third_party/pysomeip/).
 # It is the heavyweight of the three stacks; import it lazily so that a missing
@@ -23,9 +33,16 @@ except ImportError:  # pragma: no cover — someip is vendored and always presen
 
 __all__ = [
 	"EventBus",
+	"EventBusBroker",
+	"ManagedEventBus",
+	"MessageStream",
+	"Topology",
 	"InMemoryEventBus",
+	"TCPEventBus",
+	"TCPEventBusBroker",
 	"TCPEventBusClient",
 	"TCPEventBusServer",
+	"TCPMessageStream",
 	"SomeIPEventBus",
 	"SomeIPTopicMapping",
 	"SomeIPPublisher",

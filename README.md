@@ -95,11 +95,11 @@ service = Service(
 
 tinySOA 提供三种事件总线，**换协议栈只需换一个实现**，上层代码不变：
 
-| 总线 | 适用场景 | 依赖 |
-|---|---|---|
-| `InMemoryEventBus` | 单进程、开发调试、单元测试 | 无 |
-| `TCPEventBusClient/Server` | 多进程、跨机器 | 无 |
-| `SomeIPEventBus` | 车载/嵌入式 SOME/IP 协议 | pysomeip（`third_party/`） |
+| 总线 | 拓扑 (`EventBus.topology`) | 适用场景 | 依赖 |
+|---|---|---|---|
+| `InMemoryEventBus` | `LOCAL` | 单进程、开发调试、单元测试 | 无 |
+| `TCPEventBus` + `TCPEventBusBroker` | `BROKER` | 多进程、跨机器（中心 broker） | 无 |
+| `SomeIPEventBus` | `PEER` | 车载/嵌入式 SOME/IP 协议（SD 发现，无中心） | pysomeip（`third_party/`） |
 
 以最简的 `InMemoryEventBus` 为例：
 
@@ -244,6 +244,20 @@ policy = RetryPolicy(max_attempts=3, backoff=exponential_backoff(0.1), jitter=fu
 def fragile_call():
     ...
 ```
+
+## 本地 CI 与 Agent Flow
+
+```bash
+make ci                  # pytest 阻断 + ruff/black/mypy 告警
+make ci-strict           # 全部阻断
+make smoke               # examples 稳定冒烟组
+
+# 任意 agent 适配器 + issue/task -> PR（详见 docs/agent-flow.md）
+AGENT_CMD='<your-agent-command>' make agent-flow ARGS="--issue 123"
+```
+
+- CI 门禁与发布：[docs/ci-cd.md](docs/ci-cd.md)
+- Agent 适配契约与流程：[docs/agent-flow.md](docs/agent-flow.md)
 
 ## 使用 uv 运行测试
 如你本地使用 uv 管理环境，推荐以下两种方式运行测试：

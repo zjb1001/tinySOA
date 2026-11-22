@@ -22,6 +22,14 @@ make -C examples smoke-all
 | `tcp_*` | `BROKER` | 中心 `TCPEventBusBroker`，客户端 `TCPEventBus` |
 | `someip_*` | `PEER` | SOME/IP SD 发现，无中心 broker |
 
+拓扑后缀直接说明“谁多”：
+
+| 后缀 | 含义 |
+|---|---|
+| `one_pub_one_sub` | 1 publisher → 1 subscriber |
+| `one_pub_many_subs` | 1 publisher → N subscribers |
+| `many_pubs_one_sub` | N publishers → 1 subscriber |
+
 ## 案例目录
 
 | 案例 | 拓扑 | 进程 | 入口 | 观察重点 |
@@ -29,11 +37,11 @@ make -C examples smoke-all
 | `local_echo_service` | LOCAL | 单进程 | `local_echo_service.app` | 方法调用 + 事件 |
 | `local_interceptor_auth` | LOCAL | 单进程 | `local_interceptor_auth.app` | 拦截器排序 / Auth 短路 / 异常传播 |
 | `local_vehicle_platform` | LOCAL | 单进程 | `local_vehicle_platform.app` | Container 依赖/生命周期/健康检查 |
-| `local_pubsub_topologies` | LOCAL | 单进程 | `local_pubsub_topologies.app` | 1v1 / 1vN / Nv1 应用 API 观察 |
-| `tcp_pubsub_one_to_many` | BROKER | broker + pub + N sub | `tcp_pubsub_one_to_many.{server,publisher,subscriber}` | TCP 中心 broker 扇出 |
-| `someip_pubsub_one_to_one` | PEER | 1 pub + 1 sub | `someip_pubsub_one_to_one.{publisher,subscriber}` | 1v1：最小 `SomeIPService` 事件链路 |
-| `someip_pubsub_one_to_many` | PEER | 1 pub + N sub | `someip_pubsub_one_to_many.{publisher,subscriber}` | 1vN：`SomeIPService` 门面、同一服务多订阅者 |
-| `someip_pubsub_multi_sensor` | PEER | 3 pub + agg | `someip_pubsub_multi_sensor.*` | Nv1：多服务发现、聚合仪表盘 |
+| `local_pubsub_topologies` | LOCAL | 单进程 | `local_pubsub_topologies.app` | 1 pub→1 sub / 1 pub→N subs / N pubs→1 sub |
+| `tcp_pubsub_one_pub_many_subs` | BROKER | 1 pub + N sub | `tcp_pubsub_one_pub_many_subs.{server,publisher,subscriber}` | 1 pub → N subs：TCP 中心 broker 扇出 |
+| `someip_pubsub_one_pub_one_sub` | PEER | 1 pub + 1 sub | `someip_pubsub_one_pub_one_sub.{publisher,subscriber}` | 1 pub → 1 sub：最小 `SomeIPService` 事件链路 |
+| `someip_pubsub_one_pub_many_subs` | PEER | 1 pub + N sub | `someip_pubsub_one_pub_many_subs.{publisher,subscriber}` | 1 pub → N subs：同一服务多订阅者 |
+| `someip_pubsub_many_pubs_one_sub` | PEER | 3 pub + 1 agg | `someip_pubsub_many_pubs_one_sub.*` | N pubs → 1 sub：多服务发现、聚合仪表盘 |
 | `someip_method_call` | PEER | server + client | `someip_method_call.{server,client}` | SOME/IP RPC（`SomeIPService` 门面） |
 
 应用层推荐使用门面：
@@ -60,15 +68,15 @@ make -C examples topologies
 make -C examples topologies SCENARIO=1vn SUBSCRIBERS=5
 
 # TCP broker
-make -C examples tmux-pubsub
-make -C examples smoke-pubsub
+make -C examples tmux-pubsub-one-pub-many-subs
+make -C examples smoke-pubsub-one-pub-many-subs
 
 # SOME/IP
-make -C examples tmux-someip-one-to-one
-make -C examples smoke-someip-one-to-one
-make -C examples tmux-someip-one-to-many
-make -C examples smoke-someip-one-to-many
-make -C examples tmux-someip
+make -C examples tmux-someip-one-pub-one-sub
+make -C examples smoke-someip-one-pub-one-sub
+make -C examples tmux-someip-one-pub-many-subs
+make -C examples smoke-someip-one-pub-many-subs
+make -C examples tmux-someip-many-pubs-one-sub
 make -C examples smoke-calc
 
 # 全局

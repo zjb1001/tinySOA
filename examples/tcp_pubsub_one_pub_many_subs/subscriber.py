@@ -7,7 +7,7 @@ output with ``subscriber_id`` so multiple subscribers are distinguishable.
 
 Run (from the ``tinySOA`` directory; start ``server.py`` first):
 
-    PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.subscriber sub-1 \\
+    PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_pub_many_subs.subscriber sub-1 \\
         --topic demo.topic
 
 Exit code 0 on clean shutdown (SIGINT/SIGTERM), 1 if the broker is unreachable.

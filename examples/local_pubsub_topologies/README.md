@@ -1,4 +1,4 @@
-# Local pub/sub topology matrix
+# Local pub/sub — topology matrix (1p→1s, 1p→Ns, Np→1s)
 
 拓扑：`LOCAL`（`InMemoryEventBus`，单进程、无网络）。
 目的：**先观察应用代码效果**，再进入 SOME/IP method/field 阶段。

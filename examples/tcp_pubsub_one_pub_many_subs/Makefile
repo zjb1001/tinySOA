@@ -1,6 +1,6 @@
 # Makefile —— 管理 TCPEventBus 发布/订阅多进程示例的启动、测试与退出。
 #
-# 本文件位于: tinySOA/examples/tcp_pubsub_one_to_many/Makefile
+# 本文件位于: tinySOA/examples/tcp_pubsub_one_pub_many_subs/Makefile
 # tinysoa + someip 从源码解析，无需 pip 安装。
 #
 # 常用：
@@ -20,7 +20,7 @@ SELF_DIR    := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/
 TINYSOA_DIR := $(abspath $(SELF_DIR)../..)
 PYTHONPATH  := $(TINYSOA_DIR):$(TINYSOA_DIR)/src:$(TINYSOA_DIR)/third_party/pysomeip/src
 PYTHON      ?= python3
-MODULE      := examples.tcp_pubsub_one_to_many
+MODULE      := examples.tcp_pubsub_one_pub_many_subs
 
 # ---- 可调参数 -----------------------------------------------------------
 HOST        ?= 127.0.0.1

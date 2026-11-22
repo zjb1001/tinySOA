@@ -23,7 +23,7 @@ TINYSOA_DIR="$(cd "$SELF_DIR/../.." && pwd)"
 # tinySOA is now a standalone repo (split from pysomeip).
 # pysomeip is vendored under third_party/pysomeip/.
 export PYTHONPATH="$TINYSOA_DIR:$TINYSOA_DIR/src:$TINYSOA_DIR/third_party/pysomeip/src"
-MODULE="examples.someip_pubsub_multi_sensor"
+MODULE="examples.someip_pubsub_many_pubs_one_sub"
 PY="python3"
 [ -x "$TINYSOA_DIR/.venv/bin/python" ] && PY="$TINYSOA_DIR/.venv/bin/python"
 

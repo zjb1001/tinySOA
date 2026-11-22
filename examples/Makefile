@@ -14,9 +14,9 @@
 #   make interceptors           = 拦截器 + Auth
 #   make vdp                    = 车辆数据平台
 #   make topologies             = 1v1 / 1vN / Nv1 本地矩阵
-#   make tmux-pubsub            = TCP broker 一发多收
-#   make tmux-someip-one-to-many= SOME/IP 一发多收
-#   make tmux-someip            = SOME/IP 多传感器
+#   make tmux-pubsub-one-pub-many-subs            = TCP broker 一发多收
+#   make tmux-someip-one-pub-many-subs= SOME/IP 一发多收
+#   make tmux-someip-many-pubs-one-sub            = SOME/IP 多传感器
 #   make smoke-calc             = SOME/IP Calculator RPC
 #   make smoke-all              = 顺序跑稳定冒烟组
 #   make clean-all              = 停止后台进程并清理产物
@@ -34,10 +34,10 @@ LOCAL_ECHO := $(SELF_DIR)local_echo_service/
 LOCAL_INTERCEPTORS := $(SELF_DIR)local_interceptor_auth/
 LOCAL_VDP := $(SELF_DIR)local_vehicle_platform/
 LOCAL_TOPOLOGIES := $(SELF_DIR)local_pubsub_topologies/
-TCP_ONE := $(SELF_DIR)tcp_pubsub_one_to_many/
-SOMEIP_ONE_ONE := $(SELF_DIR)someip_pubsub_one_to_one/
-SOMEIP_ONE_MANY := $(SELF_DIR)someip_pubsub_one_to_many/
-SOMEIP_MULTI := $(SELF_DIR)someip_pubsub_multi_sensor/
+TCP_ONE_PUB_MANY_SUBS := $(SELF_DIR)tcp_pubsub_one_pub_many_subs/
+SOMEIP_ONE_PUB_ONE_SUB := $(SELF_DIR)someip_pubsub_one_pub_one_sub/
+SOMEIP_ONE_PUB_MANY_SUBS := $(SELF_DIR)someip_pubsub_one_pub_many_subs/
+SOMEIP_MANY_PUBS_ONE_SUB := $(SELF_DIR)someip_pubsub_many_pubs_one_sub/
 SOMEIP_CALL := $(SELF_DIR)someip_method_call/
 
 # =========================================================================
@@ -51,19 +51,19 @@ help: ## 显示帮助
 	@echo "  make echo                       本地 echo 服务"
 	@echo "  make interceptors               拦截器 + Auth"
 	@echo "  make vdp                        车辆数据平台"
-	@echo "  make topologies                 1v1 / 1vN / Nv1 本地拓扑矩阵"
+	@echo "  make topologies                 1 pub→1 sub / 1 pub→N subs / N pubs→1 sub"
 	@echo ""
 	@echo "=== TCP broker（BROKER 拓扑） ==="
-	@echo "  make tmux-pubsub                tmux：一发多收"
-	@echo "  make smoke-pubsub               冒烟：一发多收"
+	@echo "  make tmux-pubsub-one-pub-many-subs                tmux：1 pub → N subs"
+	@echo "  make smoke-pubsub-one-pub-many-subs               冒烟：1 pub → N subs"
 	@echo ""
 	@echo "=== SOME/IP（PEER 拓扑） ==="
-	@echo "  make tmux-someip-one-to-one     tmux：一对一"
-	@echo "  make smoke-someip-one-to-one    冒烟：一对一"
-	@echo "  make tmux-someip-one-to-many    tmux：一发多收"
-	@echo "  make smoke-someip-one-to-many   冒烟：一发多收"
-	@echo "  make tmux-someip                tmux：多传感器"
-	@echo "  make smoke-someip               冒烟：多传感器"
+	@echo "  make tmux-someip-one-pub-one-sub     tmux：1 pub → 1 sub"
+	@echo "  make smoke-someip-one-pub-one-sub    冒烟：1 pub → 1 sub"
+	@echo "  make tmux-someip-one-pub-many-subs    tmux：1 pub → N subs"
+	@echo "  make smoke-someip-one-pub-many-subs   冒烟：1 pub → N subs"
+	@echo "  make tmux-someip-many-pubs-one-sub                tmux：N pubs → 1 sub"
+	@echo "  make smoke-someip-many-pubs-one-sub               冒烟：N pubs → 1 sub"
 	@echo ""
 	@echo "=== SOME/IP RPC ==="
 	@echo "  make smoke-calc                 冒烟：Calculator RPC"
@@ -118,80 +118,80 @@ tmux-calc: ## tmux 可视化 Calculator RPC
 # =========================================================================
 # TCP broker
 # =========================================================================
-.PHONY: tmux-pubsub smoke-pubsub start-pubsub stop-pubsub logs-pubsub
-tmux-pubsub:
-	@$(MAKE) -C $(TCP_ONE) tmux
-smoke-pubsub:
-	@$(MAKE) -C $(TCP_ONE) smoke
-start-pubsub:
-	@$(MAKE) -C $(TCP_ONE) start
-stop-pubsub:
-	@$(MAKE) -C $(TCP_ONE) stop
-logs-pubsub:
-	@$(MAKE) -C $(TCP_ONE) logs
+.PHONY: tmux-pubsub-one-pub-many-subs smoke-pubsub-one-pub-many-subs start-pubsub-one-pub-many-subs stop-pubsub-one-pub-many-subs logs-pubsub-one-pub-many-subs
+tmux-pubsub-one-pub-many-subs:
+	@$(MAKE) -C $(TCP_ONE_PUB_MANY_SUBS) tmux
+smoke-pubsub-one-pub-many-subs:
+	@$(MAKE) -C $(TCP_ONE_PUB_MANY_SUBS) smoke
+start-pubsub-one-pub-many-subs:
+	@$(MAKE) -C $(TCP_ONE_PUB_MANY_SUBS) start
+stop-pubsub-one-pub-many-subs:
+	@$(MAKE) -C $(TCP_ONE_PUB_MANY_SUBS) stop
+logs-pubsub-one-pub-many-subs:
+	@$(MAKE) -C $(TCP_ONE_PUB_MANY_SUBS) logs
 
 # =========================================================================
 # SOME/IP pub/sub
 # =========================================================================
-.PHONY: tmux-someip-one-to-one smoke-someip-one-to-one \
-        start-someip-one-to-one stop-someip-one-to-one logs-someip-one-to-one \
-        tmux-someip-one-to-many smoke-someip-one-to-many \
-        start-someip-one-to-many stop-someip-one-to-many logs-someip-one-to-many \
-        tmux-someip smoke-someip start-someip stop-someip logs-someip
-tmux-someip-one-to-one:
-	@$(MAKE) -C $(SOMEIP_ONE_ONE) tmux
-smoke-someip-one-to-one:
-	@$(MAKE) -C $(SOMEIP_ONE_ONE) smoke
-start-someip-one-to-one:
-	@$(MAKE) -C $(SOMEIP_ONE_ONE) start
-stop-someip-one-to-one:
-	@$(MAKE) -C $(SOMEIP_ONE_ONE) stop
-logs-someip-one-to-one:
-	@$(MAKE) -C $(SOMEIP_ONE_ONE) logs
+.PHONY: tmux-someip-one-pub-one-sub smoke-someip-one-pub-one-sub \
+        start-someip-one-pub-one-sub stop-someip-one-pub-one-sub logs-someip-one-pub-one-sub \
+        tmux-someip-one-pub-many-subs smoke-someip-one-pub-many-subs \
+        start-someip-one-pub-many-subs stop-someip-one-pub-many-subs logs-someip-one-pub-many-subs \
+        tmux-someip-many-pubs-one-sub smoke-someip-many-pubs-one-sub start-someip-many-pubs-one-sub stop-someip-many-pubs-one-sub logs-someip-many-pubs-one-sub
+tmux-someip-one-pub-one-sub:
+	@$(MAKE) -C $(SOMEIP_ONE_PUB_ONE_SUB) tmux
+smoke-someip-one-pub-one-sub:
+	@$(MAKE) -C $(SOMEIP_ONE_PUB_ONE_SUB) smoke
+start-someip-one-pub-one-sub:
+	@$(MAKE) -C $(SOMEIP_ONE_PUB_ONE_SUB) start
+stop-someip-one-pub-one-sub:
+	@$(MAKE) -C $(SOMEIP_ONE_PUB_ONE_SUB) stop
+logs-someip-one-pub-one-sub:
+	@$(MAKE) -C $(SOMEIP_ONE_PUB_ONE_SUB) logs
 
-tmux-someip-one-to-many:
-	@$(MAKE) -C $(SOMEIP_ONE_MANY) tmux
-smoke-someip-one-to-many:
-	@$(MAKE) -C $(SOMEIP_ONE_MANY) smoke
-start-someip-one-to-many:
-	@$(MAKE) -C $(SOMEIP_ONE_MANY) start
-stop-someip-one-to-many:
-	@$(MAKE) -C $(SOMEIP_ONE_MANY) stop
-logs-someip-one-to-many:
-	@$(MAKE) -C $(SOMEIP_ONE_MANY) logs
+tmux-someip-one-pub-many-subs:
+	@$(MAKE) -C $(SOMEIP_ONE_PUB_MANY_SUBS) tmux
+smoke-someip-one-pub-many-subs:
+	@$(MAKE) -C $(SOMEIP_ONE_PUB_MANY_SUBS) smoke
+start-someip-one-pub-many-subs:
+	@$(MAKE) -C $(SOMEIP_ONE_PUB_MANY_SUBS) start
+stop-someip-one-pub-many-subs:
+	@$(MAKE) -C $(SOMEIP_ONE_PUB_MANY_SUBS) stop
+logs-someip-one-pub-many-subs:
+	@$(MAKE) -C $(SOMEIP_ONE_PUB_MANY_SUBS) logs
 
-tmux-someip:
-	@$(MAKE) -C $(SOMEIP_MULTI) tmux
-smoke-someip:
-	@$(MAKE) -C $(SOMEIP_MULTI) smoke
-start-someip:
-	@$(MAKE) -C $(SOMEIP_MULTI) start
-stop-someip:
-	@$(MAKE) -C $(SOMEIP_MULTI) stop
-logs-someip:
-	@$(MAKE) -C $(SOMEIP_MULTI) logs
+tmux-someip-many-pubs-one-sub:
+	@$(MAKE) -C $(SOMEIP_MANY_PUBS_ONE_SUB) tmux
+smoke-someip-many-pubs-one-sub:
+	@$(MAKE) -C $(SOMEIP_MANY_PUBS_ONE_SUB) smoke
+start-someip-many-pubs-one-sub:
+	@$(MAKE) -C $(SOMEIP_MANY_PUBS_ONE_SUB) start
+stop-someip-many-pubs-one-sub:
+	@$(MAKE) -C $(SOMEIP_MANY_PUBS_ONE_SUB) stop
+logs-someip-many-pubs-one-sub:
+	@$(MAKE) -C $(SOMEIP_MANY_PUBS_ONE_SUB) logs
 
 # =========================================================================
 # 全局
 # =========================================================================
 .PHONY: start-all stop-all status-all smoke-all clean-all
-start-all: start-someip-one-to-one start-someip-one-to-many start-pubsub start-someip ## 后台启动所有常驻组
+start-all: start-someip-one-pub-one-sub start-someip-one-pub-many-subs start-pubsub-one-pub-many-subs start-someip-many-pubs-one-sub ## 后台启动所有常驻组
 	@echo ">> 所有常驻示例组已后台启动"
 
 stop-all: ## 停止全部示例组
-	@$(MAKE) -C $(SOMEIP_ONE_ONE) stop 2>/dev/null || true
-	@$(MAKE) -C $(SOMEIP_ONE_MANY) stop 2>/dev/null || true
-	@$(MAKE) -C $(TCP_ONE) stop 2>/dev/null || true
-	@$(MAKE) -C $(SOMEIP_MULTI) stop 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_ONE_PUB_ONE_SUB) stop 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_ONE_PUB_MANY_SUBS) stop 2>/dev/null || true
+	@$(MAKE) -C $(TCP_ONE_PUB_MANY_SUBS) stop 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_MANY_PUBS_ONE_SUB) stop 2>/dev/null || true
 	@echo ">> 所有示例组已停止"
 
 status-all: ## 查看全部示例组状态
-	@echo "=== tcp_pubsub_one_to_many ==="; $(MAKE) --no-print-directory -C $(TCP_ONE) status
-	@echo "=== someip_pubsub_one_to_one ==="; $(MAKE) --no-print-directory -C $(SOMEIP_ONE_ONE) status
-	@echo "=== someip_pubsub_one_to_many ==="; $(MAKE) --no-print-directory -C $(SOMEIP_ONE_MANY) status
-	@echo "=== someip_pubsub_multi_sensor ==="; $(MAKE) --no-print-directory -C $(SOMEIP_MULTI) status
+	@echo "=== tcp_pubsub_one_pub_many_subs ==="; $(MAKE) --no-print-directory -C $(TCP_ONE_PUB_MANY_SUBS) status
+	@echo "=== someip_pubsub_one_pub_one_sub ==="; $(MAKE) --no-print-directory -C $(SOMEIP_ONE_PUB_ONE_SUB) status
+	@echo "=== someip_pubsub_one_pub_many_subs ==="; $(MAKE) --no-print-directory -C $(SOMEIP_ONE_PUB_MANY_SUBS) status
+	@echo "=== someip_pubsub_many_pubs_one_sub ==="; $(MAKE) --no-print-directory -C $(SOMEIP_MANY_PUBS_ONE_SUB) status
 
-smoke-all: echo interceptors topologies smoke-pubsub smoke-someip-one-to-one smoke-someip-one-to-many smoke-someip smoke-vdp smoke-calc ## 顺序跑稳定冒烟组
+smoke-all: echo interceptors topologies smoke-pubsub-one-pub-many-subs smoke-someip-one-pub-one-sub smoke-someip-one-pub-many-subs smoke-someip-many-pubs-one-sub smoke-vdp smoke-calc ## 顺序跑稳定冒烟组
 	@echo ">> 所有冒烟测试完成"
 
 clean-all: stop-all ## 停止全部进程并清理产物
@@ -199,10 +199,10 @@ clean-all: stop-all ## 停止全部进程并清理产物
 	@$(MAKE) -C $(LOCAL_INTERCEPTORS) clean 2>/dev/null || true
 	@$(MAKE) -C $(LOCAL_VDP) clean 2>/dev/null || true
 	@$(MAKE) -C $(LOCAL_TOPOLOGIES) clean 2>/dev/null || true
-	@$(MAKE) -C $(TCP_ONE) clean 2>/dev/null || true
-	@$(MAKE) -C $(SOMEIP_ONE_ONE) clean 2>/dev/null || true
-	@$(MAKE) -C $(SOMEIP_ONE_MANY) clean 2>/dev/null || true
-	@$(MAKE) -C $(SOMEIP_MULTI) clean 2>/dev/null || true
+	@$(MAKE) -C $(TCP_ONE_PUB_MANY_SUBS) clean 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_ONE_PUB_ONE_SUB) clean 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_ONE_PUB_MANY_SUBS) clean 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_MANY_PUBS_ONE_SUB) clean 2>/dev/null || true
 	@$(MAKE) -C $(SOMEIP_CALL) clean 2>/dev/null || true
 	@rm -f $(SELF_DIR)*.pid $(SELF_DIR)*.log
 	@echo ">> 全局清理完成"

@@ -20,7 +20,7 @@ SELF_DIR    := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/
 TINYSOA_DIR := $(abspath $(SELF_DIR)../..)
 PYTHONPATH  := $(TINYSOA_DIR):$(TINYSOA_DIR)/src:$(TINYSOA_DIR)/third_party/pysomeip/src
 PYTHON      ?= $(shell [ -x "$(TINYSOA_DIR)/.venv/bin/python" ] && echo "$(TINYSOA_DIR)/.venv/bin/python" || echo python3)
-MODULE      := examples.someip_pubsub_one_to_one
+MODULE      := examples.someip_pubsub_one_pub_one_sub
 
 # ---- 可调参数 -----------------------------------------------------------
 LOG_LEVEL       ?= INFO

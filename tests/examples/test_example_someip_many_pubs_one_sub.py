@@ -1,7 +1,7 @@
 """Wiring and configuration-consistency tests for the SOME/IP multi-publisher
 example.
 
-Covers ``examples/someip_pubsub_multi_sensor/`` (three sensor publishers +
+Covers ``examples/someip_pubsub_many_pubs_one_sub/`` (three sensor publishers +
 aggregator subscriber, communicating over SOME/IP with pysomeip).
 
 Fast tests (no network, no SOME/IP stack — pure config validation):
@@ -24,11 +24,11 @@ import pytest
 # --------------------------------------------------------------------------- #
 
 _SOMEIP_EXAMPLE_MODS: tuple[str, ...] = (
-    "examples.someip_pubsub_multi_sensor._common",
-    "examples.someip_pubsub_multi_sensor.publisher1_temperature",
-    "examples.someip_pubsub_multi_sensor.publisher2_humidity",
-    "examples.someip_pubsub_multi_sensor.publisher3_pressure",
-    "examples.someip_pubsub_multi_sensor.subscriber_aggregator",
+    "examples.someip_pubsub_many_pubs_one_sub._common",
+    "examples.someip_pubsub_many_pubs_one_sub.publisher1_temperature",
+    "examples.someip_pubsub_many_pubs_one_sub.publisher2_humidity",
+    "examples.someip_pubsub_many_pubs_one_sub.publisher3_pressure",
+    "examples.someip_pubsub_many_pubs_one_sub.subscriber_aggregator",
 )
 
 REPO_ROOT = str(__import__("pathlib").Path(__file__).resolve().parents[2])
@@ -53,7 +53,7 @@ def test_someip_example_module_imports_cleanly(modname: str) -> None:
 @pytest.fixture(scope="module")
 def _common() -> object:
     """Load ``_common`` once for the configuration-consistency tests."""
-    from examples.someip_pubsub_multi_sensor import _common as mod
+    from examples.someip_pubsub_many_pubs_one_sub import _common as mod
 
     return mod
 
@@ -99,7 +99,7 @@ class TestTopicMappingConsistency:
             assert mapping.instance_id == 0x0001
 
     def test_instance_and_eventgroup_id_are_consistent(self, _common) -> None:
-        from examples.someip_pubsub_multi_sensor._common import (
+        from examples.someip_pubsub_many_pubs_one_sub._common import (
             EVENTGROUP_ID,
             INSTANCE_ID,
         )
@@ -145,7 +145,7 @@ class TestSomeIPSensorDelivery:
                 [
                     sys.executable,
                     "-m",
-                    "examples.someip_pubsub_multi_sensor.publisher1_temperature",
+                    "examples.someip_pubsub_many_pubs_one_sub.publisher1_temperature",
                     "--count",
                     "3",
                     "--interval",
@@ -161,7 +161,7 @@ class TestSomeIPSensorDelivery:
                 [
                     sys.executable,
                     "-m",
-                    "examples.someip_pubsub_multi_sensor.subscriber_aggregator",
+                    "examples.someip_pubsub_many_pubs_one_sub.subscriber_aggregator",
                     "--count",
                     "3",
                 ],

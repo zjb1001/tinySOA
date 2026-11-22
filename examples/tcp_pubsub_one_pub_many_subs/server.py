@@ -7,7 +7,7 @@ hardened for production (no auth, backpressure or persistence).
 
 Run (from the ``tinySOA`` directory, tinysoa + someip resolve from source):
 
-    PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.server \\
+    PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_pub_many_subs.server \\
         --host 127.0.0.1 --port 8765 --log-level INFO
 
 Exit code 0 on clean shutdown (SIGINT/SIGTERM), 1 if the port is unavailable.

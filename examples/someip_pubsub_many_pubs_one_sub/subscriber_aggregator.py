@@ -9,8 +9,8 @@ Run (``PYTHONPATH`` set so both ``someip`` and ``tinysoa`` resolve; from this
 directory):
 
     export PYTHONPATH=$REPO/src:$REPO/tinySOA/src
-    python -m examples.someip_pubsub_multi_sensor.subscriber_aggregator                       # run forever
-    python -m examples.someip_pubsub_multi_sensor.subscriber_aggregator --count 9             # stop after 9 readings
+    python -m examples.someip_pubsub_many_pubs_one_sub.subscriber_aggregator                       # run forever
+    python -m examples.someip_pubsub_many_pubs_one_sub.subscriber_aggregator --count 9             # stop after 9 readings
 
 Exit code 0 on clean shutdown.
 """

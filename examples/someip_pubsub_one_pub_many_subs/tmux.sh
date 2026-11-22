@@ -17,7 +17,7 @@ REPO_ROOT="$(cd "$SELF_DIR/../.." && pwd)"
 export PYTHONPATH="$REPO_ROOT:$REPO_ROOT/src:$REPO_ROOT/third_party/pysomeip/src"
 PY="python3"
 [ -x "$REPO_ROOT/.venv/bin/python" ] && PY="$REPO_ROOT/.venv/bin/python"
-MODULE="examples.someip_pubsub_one_to_many"
+MODULE="examples.someip_pubsub_one_pub_many_subs"
 
 SESSION="${SESSION:-tinysoa-someip-one-to-many}"
 PUB_COUNT="${PUB_COUNT:-30}"

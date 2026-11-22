@@ -1,4 +1,4 @@
-# SOME/IP pub/sub — 一对一
+# SOME/IP pub/sub — 1 publisher → 1 subscriber
 
 拓扑：`PEER`。一个 publisher 通过 SOME/IP SD 通告服务，一个 subscriber
 发现并订阅；事件通过 unicast notification 投递。
@@ -6,7 +6,7 @@
 ## 目录
 
 ```text
-someip_pubsub_one_to_one/
+someip_pubsub_one_pub_one_sub/
   _common.py      topic / SOME/IP ID / service binding
   publisher.py    SomeIPService + publisher.publish
   subscriber.py   SomeIPService + subscriber.on
@@ -36,20 +36,20 @@ await publisher.publish({"value": 21.5})
 export PYTHONPATH="$PWD:$PWD/src:$PWD/third_party/pysomeip/src"
 
 # 终端 1：publisher
-python -m examples.someip_pubsub_one_to_one.publisher --count 30 --interval 1.0
+python -m examples.someip_pubsub_one_pub_one_sub.publisher --count 30 --interval 1.0
 
 # 终端 2：subscriber
-python -m examples.someip_pubsub_one_to_one.subscriber --want 5 --local-port 30980
+python -m examples.someip_pubsub_one_pub_one_sub.subscriber --want 5 --local-port 30980
 ```
 
 ## Make 快捷方式
 
 ```bash
-make tmux-someip-one-to-one      # tmux 双窗格
-make smoke-someip-one-to-one     # 端到端冒烟
-make start-someip-one-to-one
-make stop-someip-one-to-one
-make logs-someip-one-to-one
+make tmux-someip-one-pub-one-sub      # tmux 双窗格
+make smoke-someip-one-pub-one-sub     # 端到端冒烟
+make start-someip-one-pub-one-sub
+make stop-someip-one-pub-one-sub
+make logs-someip-one-pub-one-sub
 ```
 
 ## 观察点

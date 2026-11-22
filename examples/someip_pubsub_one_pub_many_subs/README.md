@@ -1,4 +1,4 @@
-# SOME/IP pub/sub — 一发多收
+# SOME/IP pub/sub — 1 publisher → N subscribers
 
 拓扑：`PEER`。一个 publisher 通过 SOME/IP SD 通告服务，多个独立 subscriber
 进程分别订阅同一个 eventgroup；事件通过 unicast notification 投递。
@@ -6,7 +6,7 @@
 ## 目录
 
 ```text
-someip_pubsub_one_to_many/
+someip_pubsub_one_pub_many_subs/
   _common.py      topic 与 SOME/IP ID / 本地端口配置
   publisher.py    SD Offer + publish
   subscriber.py   SD FindSubscribe + async handler
@@ -37,23 +37,23 @@ SOME/IP ID 在 `_common.py` 的 `MAPPING` / `service_binding()` 中。
 export PYTHONPATH="$PWD:$PWD/src:$PWD/third_party/pysomeip/src"
 
 # 终端 1：publisher
-python -m examples.someip_pubsub_one_to_many.publisher --count 30 --interval 1.0
+python -m examples.someip_pubsub_one_pub_many_subs.publisher --count 30 --interval 1.0
 
 # 终端 2：subscriber 1
-python -m examples.someip_pubsub_one_to_many.subscriber sub-1 --want 5 --local-port 30930
+python -m examples.someip_pubsub_one_pub_many_subs.subscriber sub-1 --want 5 --local-port 30930
 
 # 终端 3：subscriber 2
-python -m examples.someip_pubsub_one_to_many.subscriber sub-2 --want 5 --local-port 30940
+python -m examples.someip_pubsub_one_pub_many_subs.subscriber sub-2 --want 5 --local-port 30940
 ```
 
 ## Make 快捷方式
 
 ```bash
-make tmux-someip-one-to-many      # tmux 三窗格
-make smoke-someip-one-to-many     # 两个 subscriber 各至少收到 --want 条
-make start-someip-one-to-many
-make stop-someip-one-to-many
-make logs-someip-one-to-many
+make tmux-someip-one-pub-many-subs      # tmux 三窗格
+make smoke-someip-one-pub-many-subs     # 两个 subscriber 各至少收到 --want 条
+make start-someip-one-pub-many-subs
+make stop-someip-one-pub-many-subs
+make logs-someip-one-pub-many-subs
 ```
 
 ## 观察点

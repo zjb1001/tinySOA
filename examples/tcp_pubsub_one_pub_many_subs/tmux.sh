@@ -26,7 +26,7 @@ TINYSOA_DIR="$(cd "$SELF_DIR/../.." && pwd)"
 export PYTHONPATH="$TINYSOA_DIR:$TINYSOA_DIR/src:$TINYSOA_DIR/third_party/pysomeip/src"
 PY="python3"
 [ -x "$TINYSOA_DIR/.venv/bin/python" ] && PY="$TINYSOA_DIR/.venv/bin/python"
-MODULE="examples.tcp_pubsub_one_to_many"
+MODULE="examples.tcp_pubsub_one_pub_many_subs"
 
 SESSION="${SESSION:-tinysoa-tcp-one}"
 HOST="${HOST:-127.0.0.1}"

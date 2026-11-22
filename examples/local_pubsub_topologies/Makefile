@@ -1,4 +1,4 @@
-# Makefile —— 本地 pub/sub 拓扑矩阵（1v1 / 1vN / Nv1）。
+# Makefile —— 本地 pub/sub 拓扑矩阵（1p→1s / 1p→Ns / Np→1s）。
 #
 # 所有场景使用 InMemoryEventBus，单进程、确定性、无网络。
 #
@@ -29,12 +29,12 @@ LOG_LEVEL   ?= INFO
 .PHONY: help run smoke clean
 
 help: ## 显示帮助
-	@echo "local_pubsub_topologies —— 1v1 / 1vN / Nv1 应用观察"
+	@echo "local_pubsub_topologies —— 1p→1s / 1p→Ns / Np→1s 应用观察"
 	@echo ""
 	@echo "  make run                              跑全部拓扑"
-	@echo "  make run SCENARIO=1v1                 一发一收"
-	@echo "  make run SCENARIO=1vn SUBSCRIBERS=5   一发多收"
-	@echo "  make run SCENARIO=nv1 PUBLISHERS=3    多发一收"
+	@echo "  make run SCENARIO=1v1                 1 pub → 1 sub"
+	@echo "  make run SCENARIO=1vn SUBSCRIBERS=5   1 pub → N subs"
+	@echo "  make run SCENARIO=nv1 PUBLISHERS=3    N pubs → 1 sub"
 	@echo "  make smoke                            同 run all"
 	@echo "  make clean"
 	@echo ""

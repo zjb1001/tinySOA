@@ -30,7 +30,7 @@ tests/
 | `config/` | unit | test_config_merge, test_config_system |
 | `eventbus/` (InMemory+TCP) | integration | test_event_bus |
 | `eventbus/` (SomeIP) | integration | test_someip_bus, test_service_discovery_proto |
-| examples (all 8) | examples | test_example_local_echo_service, _local_interceptor_auth, _tcp_pubsub_one_to_many, _someip_pubsub_multi_sensor, _someip_one_to_many_config, _local_pubsub_topologies |
+| examples | examples | test_example_local_echo_service, _local_interceptor_auth, _local_pubsub_topologies, _tcp_one_pub_many_subs, _someip_one_pub_one_sub_config, _someip_one_pub_many_subs_config, _someip_many_pubs_one_sub |
 | system | system/ST-* | standalone scripts (not pytest) |
 
 **Resolved tech debt**:
@@ -144,8 +144,8 @@ def example_pythonpath() -> dict[str, str]:
 
 @pytest.fixture(scope="session")
 def someip_example_dir() -> str:
-    """Return the absolute path of ``examples/someip_pubsub_multi_sensor``."""
-    return str(_CLAUDE_ROOT / "examples" / "someip_pubsub_multi_sensor")
+    """Return the absolute path of ``examples/someip_pubsub_many_pubs_one_sub``."""
+    return str(_CLAUDE_ROOT / "examples" / "someip_pubsub_many_pubs_one_sub")
 ```
 
 ## 5. Contract-Test Parametrization

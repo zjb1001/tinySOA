@@ -6,7 +6,7 @@ burst of timestamped events on a topic, then exits.
 
 Run (from the ``tinySOA`` directory; start ``server.py`` first):
 
-    PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.publisher \\
+    PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_pub_many_subs.publisher \\
         --topic demo.topic --count 5 --interval 1.0
 
 Exit code 0 on success, 1 if the broker is unreachable.

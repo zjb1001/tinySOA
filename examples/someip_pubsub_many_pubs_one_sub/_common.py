@@ -11,7 +11,7 @@ Run convention (set ``PYTHONPATH`` so both ``someip`` and ``tinysoa`` resolve
 from source; run each script from this directory):
 
     export PYTHONPATH=$REPO/src:$REPO/tinySOA/src
-    python -m examples.someip_pubsub_multi_sensor.publisher1_temperature     # or publisher2/3, subscriber_aggregator
+    python -m examples.someip_pubsub_many_pubs_one_sub.publisher1_temperature     # or publisher2/3, subscriber_aggregator
 """
 
 from __future__ import annotations

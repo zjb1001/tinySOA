@@ -1,4 +1,4 @@
-# SOME/IP Multi-Publisher, Single Subscriber Example
+# SOME/IP pub/sub — N publishers → 1 subscriber
 
 This example demonstrates how multiple SOME/IP service publishers communicate with a single centralized subscriber.
 
@@ -77,32 +77,32 @@ Every script accepts `--log-level {DEBUG,INFO,WARNING,ERROR}` and `--count N`
 
 ### Terminal 1: Start Publisher 1 (Temperature)
 ```bash
-python -m examples.someip_pubsub_multi_sensor.publisher1_temperature
+python -m examples.someip_pubsub_many_pubs_one_sub.publisher1_temperature
 ```
 
 ### Terminal 2: Start Publisher 2 (Humidity)
 ```bash
-python -m examples.someip_pubsub_multi_sensor.publisher2_humidity
+python -m examples.someip_pubsub_many_pubs_one_sub.publisher2_humidity
 ```
 
 ### Terminal 3: Start Publisher 3 (Pressure)
 ```bash
-python -m examples.someip_pubsub_multi_sensor.publisher3_pressure
+python -m examples.someip_pubsub_many_pubs_one_sub.publisher3_pressure
 ```
 
 ### Terminal 4: Start Subscriber (Aggregator)
 ```bash
-python -m examples.someip_pubsub_multi_sensor.subscriber_aggregator
+python -m examples.someip_pubsub_many_pubs_one_sub.subscriber_aggregator
 ```
 
 ## Running All at Once
 
 ```bash
 # Terminal setup (run these in separate terminals or in background)
-python -m examples.someip_pubsub_multi_sensor.publisher1_temperature &
-python -m examples.someip_pubsub_multi_sensor.publisher2_humidity &
-python -m examples.someip_pubsub_multi_sensor.publisher3_pressure &
-python -m examples.someip_pubsub_multi_sensor.subscriber_aggregator
+python -m examples.someip_pubsub_many_pubs_one_sub.publisher1_temperature &
+python -m examples.someip_pubsub_many_pubs_one_sub.publisher2_humidity &
+python -m examples.someip_pubsub_many_pubs_one_sub.publisher3_pressure &
+python -m examples.someip_pubsub_many_pubs_one_sub.subscriber_aggregator
 ```
 
 ## Expected Output

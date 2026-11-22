@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from examples.someip_pubsub_one_to_many._common import (
+from examples.someip_pubsub_one_pub_many_subs._common import (
     EVENT_MAPPINGS,
     SERVICE_ID,
     TOPIC,
     service_binding,
 )
-from examples.someip_pubsub_one_to_many.publisher import (
+from examples.someip_pubsub_one_pub_many_subs.publisher import (
     parse_args as parse_publisher_args,
 )
-from examples.someip_pubsub_one_to_many.subscriber import (
+from examples.someip_pubsub_one_pub_many_subs.subscriber import (
     parse_args as parse_subscriber_args,
 )
 from tinysoa.eventbus import SomeIPService, TopicPublisher, TopicSubscriber

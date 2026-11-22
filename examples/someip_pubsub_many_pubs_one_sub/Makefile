@@ -1,6 +1,6 @@
 # Makefile —— 管理 SOME/IP 多传感器发布者 + 聚合订阅者演示的启动与退出。
 #
-# 本文件位于: tinySOA/examples/someip_pubsub_multi_sensor/Makefile
+# 本文件位于: tinySOA/examples/someip_pubsub_many_pubs_one_sub/Makefile
 # tinysoa + someip(pysomeip) 从源码解析，无需 pip 安装。
 #
 # 常用：
@@ -21,7 +21,7 @@ SELF_DIR    := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/
 TINYSOA_DIR := $(abspath $(SELF_DIR)../..)
 PYTHONPATH  := $(TINYSOA_DIR):$(TINYSOA_DIR)/src:$(TINYSOA_DIR)/third_party/pysomeip/src
 PYTHON      ?= python3
-MODULE      := examples.someip_pubsub_multi_sensor
+MODULE      := examples.someip_pubsub_many_pubs_one_sub
 
 # ---- 可调参数 -----------------------------------------------------------
 LOG_LEVEL     ?= INFO

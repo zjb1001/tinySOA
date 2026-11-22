@@ -10,7 +10,7 @@ import time
 import pytest
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-MODULE = "examples.tcp_pubsub_one_to_many"
+MODULE = "examples.tcp_pubsub_one_pub_many_subs"
 
 
 def _env() -> dict[str, str]:

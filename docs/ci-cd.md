@@ -54,19 +54,21 @@ python -m pip install -r requirements-dev.txt
 
 ## 冒烟组
 
-`make smoke` 只跑稳定、可重复的子集：
+`make smoke` 只跑稳定、可重复的快速子集：
 
 ```bash
 make -C examples smoke-vdp smoke-calc smoke-pubsub smoke-pubsub-many
 ```
 
-SOME/IP 事件冒烟（`smoke-echo-someip`、`smoke-someip`）默认参数存在订阅延迟竞态，
-WSL2 回环上也不稳定，因此没有放进默认冒烟组。需要时手工执行：
+`make -C examples smoke-all` 额外包含 SOME/IP 事件冒烟与跨进程编排。
+SOME/IP 两个事件冒烟的默认参数已按订阅延迟调优：
 
 ```bash
-make -C examples smoke-echo-someip SMOKE_COUNT=20 SMOKE_INTERVAL=1
-make -C examples smoke-someip SMOKE_COUNT=30 SMOKE_INTERVAL=0.5 AGG_COUNT=9
+make -C examples smoke-echo-someip   # 默认 20 条 @ 1.0s
+make -C examples smoke-someip        # 默认 30 条 @ 0.5s，AGG_COUNT=9
 ```
+
+WSL2 回环上 SD 仍可能偶发竞态；失败时先确认没有遗留 SOME/IP 进程。
 
 ## 本地发布（CD）
 

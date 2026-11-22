@@ -25,8 +25,8 @@ MODULE      := examples.someip_pubsub_multi_sensor
 
 # ---- 可调参数 -----------------------------------------------------------
 LOG_LEVEL     ?= INFO
-SMOKE_COUNT   ?= 20     # 每个传感器的采样数
-SMOKE_INTERVAL ?= 0.3
+SMOKE_COUNT   ?= 30     # 每个传感器的采样数
+SMOKE_INTERVAL ?= 0.5
 SMOKE_TIMEOUT  ?= 45    # aggregator 最长等待时间 (WSL2 上 SD 可能不投递)
 AGG_PORT      ?= 30510
 AGG_COUNT     ?= 9      # aggregator 停止前累积的总读数

@@ -14,7 +14,8 @@
 #   --issue N          GitHub issue number (uses `gh issue view`)
 #   --task TEXT        Free-form task instead of an issue
 #   --title TEXT       Title for --task (default: first line of --task)
-#   --base BRANCH      Base branch (default: main)
+#   --base BRANCH      PR base branch (default: main)
+#   --base-ref REF     Git ref for the worktree/diff (default: origin/<base>)
 #   --max-repair N     Repair cycles after CI/review failure (default: 2)
 #   --yes              Push the branch and open a PR (required for outward actions)
 #   --no-pr            Run everything locally; do not push or open a PR
@@ -60,6 +61,7 @@ ISSUE=""
 TASK_TEXT=""
 TASK_TITLE=""
 BASE="main"
+BASE_REF=""
 MAX_REPAIR=2
 ASSUME_YES=0
 NO_PR=0
@@ -100,6 +102,9 @@ while [[ $# -gt 0 ]]; do
         --base)
             [[ $# -ge 2 ]] || die "--base needs a branch"
             BASE="$2"; shift 2 ;;
+        --base-ref)
+            [[ $# -ge 2 ]] || die "--base-ref needs a git ref"
+            BASE_REF="$2"; shift 2 ;;
         --max-repair)
             [[ $# -ge 2 ]] || die "--max-repair needs a number"
             MAX_REPAIR="$2"; shift 2 ;;
@@ -128,6 +133,7 @@ fi
 if [[ ! "$MAX_REPAIR" =~ ^[0-9]+$ ]]; then
     die "--max-repair must be a non-negative integer"
 fi
+BASE_REF="${BASE_REF:-origin/$BASE}"
 
 if [[ -z "$PYTHON_BIN" ]]; then
     die "python3 not found (set PYTHON=/path/to/python)"
@@ -198,7 +204,7 @@ RUN_DIR="$ROOT_DIR/.agent-flow/runs/$RUN_ID"
 WORKTREE="$ROOT_DIR/.agent-flow/worktrees/$RUN_ID"
 
 echo "agent-flow: $SOURCE -> $BRANCH"
-echo "  base:      origin/$BASE"
+echo "  base:      $BASE_REF (PR base: $BASE)"
 echo "  run dir:   $RUN_DIR"
 echo "  worktree:  $WORKTREE"
 echo "  max repair: $MAX_REPAIR"
@@ -225,12 +231,18 @@ cleanup() {
 trap cleanup EXIT
 
 # ---------------------------------------------------------------- worktree ---
-git -C "$ROOT_DIR" fetch origin "$BASE" >/dev/null 2>&1 \
-    || die "git fetch origin $BASE failed"
-git -C "$ROOT_DIR" rev-parse --verify "origin/$BASE" >/dev/null 2>&1 \
-    || die "origin/$BASE does not exist"
-git -C "$ROOT_DIR" worktree add -b "$BRANCH" "$WORKTREE" "origin/$BASE" \
+if [[ "$BASE_REF" == origin/* ]]; then
+    git -C "$ROOT_DIR" fetch origin "${BASE_REF#origin/}" >/dev/null 2>&1 \
+        || die "git fetch origin ${BASE_REF#origin/} failed"
+fi
+git -C "$ROOT_DIR" rev-parse --verify "$BASE_REF" >/dev/null 2>&1 \
+    || die "base ref does not exist: $BASE_REF"
+git -C "$ROOT_DIR" worktree add -b "$BRANCH" "$WORKTREE" "$BASE_REF" \
     || die "cannot create worktree at $WORKTREE"
+if [[ -f "$WORKTREE/.gitmodules" ]]; then
+    git -C "$WORKTREE" submodule update --init --recursive >/dev/null 2>&1 \
+        || die "cannot initialize submodules in $WORKTREE"
+fi
 
 MAIN_PYTHON="$PYTHON_BIN"
 WORKTREE_PYTHONPATH="$WORKTREE/src:$WORKTREE/third_party/pysomeip/src"
@@ -239,7 +251,7 @@ WORKTREE_PYTHONPATH="$WORKTREE/src:$WORKTREE/third_party/pysomeip/src"
     printf '# %s\n\n' "$ISSUE_TITLE"
     printf -- '- Source: %s\n' "$ISSUE_URL"
     printf -- '- Branch: %s\n' "$BRANCH"
-    printf -- '- Base: origin/%s\n\n' "$BASE"
+    printf -- '- Base: %s\n\n' "$BASE_REF"
     printf '## Body\n\n%s\n' "$ISSUE_BODY"
 } > "$RUN_DIR/task.md"
 
@@ -274,7 +286,7 @@ run_agent() {
     ) >"$log_file" 2>&1
 }
 
-export ISSUE_TITLE ISSUE_BODY ISSUE_URL BRANCH BASE WORKTREE RUN_DIR
+export ISSUE_TITLE ISSUE_BODY ISSUE_URL BRANCH BASE BASE_REF WORKTREE RUN_DIR
 
 # ------------------------------------------------------------ implement ---
 echo "agent-flow: implementation"
@@ -318,7 +330,7 @@ for ((cycle = 0; cycle <= MAX_REPAIR; cycle++)); do
     # Stage everything so the reviewer sees new files as well as edits.
     git -C "$WORKTREE" add -A
     DIFF_PATH="$RUN_DIR/review-$cycle.diff"
-    git -C "$WORKTREE" diff --cached "origin/$BASE" > "$DIFF_PATH"
+    git -C "$WORKTREE" diff --cached "$BASE_REF" > "$DIFF_PATH"
     export DIFF_PATH
     REVIEW_LOG="$RUN_DIR/review-$cycle.log"
     echo "agent-flow: review cycle $cycle"
@@ -405,7 +417,11 @@ fi
     echo "Blocking tests: **PASS** (lint/typecheck remain advisory)."
     echo
     echo '```'
-    tail -n 40 "$CI_LOG"
+    if grep -q "CI summary" "$CI_LOG"; then
+        sed -n '/CI summary/,$p' "$CI_LOG"
+    else
+        tail -n 40 "$CI_LOG"
+    fi
     echo '```'
     echo
     echo "### Independent review"

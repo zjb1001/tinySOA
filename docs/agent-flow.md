@@ -83,6 +83,9 @@ make agent-flow ARGS="--task '把 TCPEventBus 拆成 BrokerEventBus + TCPMessage
 # 只打印计划
 make agent-flow ARGS="--issue 123 --dry-run"
 
+# 本地验证：以当前 HEAD 为基线，不依赖已推送的 origin/main
+make agent-flow ARGS="--task '...' --base-ref HEAD --no-pr"
+
 # 或者直接调用脚本
 bash scripts/agent-flow.sh --issue 123
 bash scripts/agent-flow.sh --task "..." --title "..." --yes
@@ -95,7 +98,8 @@ bash scripts/agent-flow.sh --task "..." --title "..." --yes
 | `--issue N` | 读取 GitHub issue 的标题/正文/标签 |
 | `--task TEXT` | 直接传入任务正文 |
 | `--title TEXT` | `--task` 模式的标题（默认取第一行） |
-| `--base BRANCH` | 基线分支，默认 `main` |
+| `--base BRANCH` | PR 目标分支，默认 `main` |
+| `--base-ref REF` | worktree/diff 的基线 ref，默认 `origin/<base>`；本地验证可用 `HEAD` |
 | `--max-repair N` | CI/评审失败后的最大修复轮数，默认 2 |
 | `--yes` | 推送分支并创建 PR（对外动作必须显式授权） |
 | `--no-pr` | 只做本地实现/验证/提交，不推送 |
@@ -115,8 +119,9 @@ bash scripts/agent-flow.sh --task "..." --title "..." --yes
 ## 流程细节
 
 1. **隔离**：每次运行创建 `.agent-flow/worktrees/<run-id>`，分支为
-   `agent/issue-<n>-<slug>-<timestamp>` 或 `agent/<slug>-<timestamp>`，基线是
-   `origin/main`。
+   `agent/issue-<n>-<slug>-<timestamp>` 或 `agent/<slug>-<timestamp>`，基线默认是
+   `origin/<base>`，可用 `--base-ref` 覆盖（本地验证可用 `HEAD`）。创建后会自动执行
+   `git submodule update --init --recursive`，确保 pysomeip 在 worktree 中可用。
 2. **实现**：`prompts/implement.md` 要求 agent 保持改动最小，并为行为变化补测试。
 3. **CI 门禁**：在 worktree 中执行 `scripts/ci.sh`。测试失败会触发
    `prompts/repair.md`，最多 `--max-repair` 轮。

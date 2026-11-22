@@ -3,7 +3,7 @@ You must NOT modify any file.
 
 ## Scope
 
-Review the changes in `{{WORKTREE}}` against `origin/{{BASE}}`.
+Review the changes in `{{WORKTREE}}` against `{{BASE_REF}}`.
 
 The complete staged diff is already on disk at:
 

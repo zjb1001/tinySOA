@@ -5,10 +5,14 @@ from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from threading import Lock
-from typing import Awaitable, Callable, ClassVar, Dict, List, Optional
+from typing import TYPE_CHECKING, Awaitable, Callable, ClassVar, Dict, List, Optional
 from uuid import UUID, uuid4
 
 from tinysoa.eventbus.message import EventMessage
+
+if TYPE_CHECKING:
+    from .topic import TopicPublisher, TopicSubscriber
+
 
 EventHandler = Callable[[EventMessage], Awaitable[None]]
 
@@ -69,6 +73,18 @@ class EventBus(ABC):
     def get_subscribers_count(self, topic: str) -> int:
         """Get the number of *local* subscribers for a topic."""
         raise NotImplementedError
+
+    def publisher(self, topic: str) -> "TopicPublisher":
+        """Return an application-facing publisher bound to ``topic``."""
+        from .topic import TopicPublisher
+
+        return TopicPublisher(self, topic)
+
+    def subscriber(self, topic: str) -> "TopicSubscriber":
+        """Return an application-facing subscriber bound to ``topic``."""
+        from .topic import TopicSubscriber
+
+        return TopicSubscriber(self, topic)
 
 
 class ManagedEventBus(EventBus):

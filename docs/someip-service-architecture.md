@@ -24,23 +24,44 @@
 - `SomeIPMethodDispatcher`：服务端注册 async handler，自动处理 RESPONSE/ERROR；
 - Calculator 示例已切到框架 API。
 
-尚未统一：同一个 `(service_id, instance_id)` 的 event 和 method 仍由不同的
-`SomeIPPublisher` 实例承载；把两者合并到单一服务实例是后续工作。
+已落地 Phase 3.5（统一服务实例）：
+
+- `SomeIPServiceInstance`：一个 `(service_id, instance_id)` 对应一个
+  pysomeip `SimpleService`；
+- eventgroup 和 method 注册在同一个实例上，共享一个 unicast endpoint 和一个
+  SD Offer；
+- `SomeIPEndpoint.get_or_create_service_instance()` 负责缓存；
+- `SomeIPEventBus` / `SomeIPMethodDispatcher` / `SomeIPMethodInvoker`
+  都支持注入同一个 `SomeIPEndpoint`。
 
 field、E2E、TP 是后续阶段，本文档描述目标架构。
 
 ## 1. 应用侧
 
-```python
-from tinysoa.config import create_event_bus
-from tinysoa.eventbus import EventMessage
+推荐使用应用层门面：
 
-bus = create_event_bus(config)      # config 可以来自代码或 YAML
-await bus.start()
-await bus.publish(EventMessage(topic="sensor.temperature", payload={"value": 21.5}))
-await bus.stop()
+```python
+from tinysoa.eventbus import SomeIPService
+
+service = SomeIPService(binding, event_mappings=EVENT_MAPPINGS)
+publisher = service.publisher("sensor.temperature")
+subscriber = service.subscriber("sensor.temperature")
+
+await service.start()
+await publisher.publish({"value": 21.5})
+# subscriber.on(handler) 注册事件处理
+await service.stop()
 ```
 
+通用总线也提供 topic 门面：
+
+```python
+publisher = bus.publisher("sensor.temperature")
+subscriber = bus.subscriber("sensor.temperature")
+await publisher.publish({"value": 21.5})
+```
+
+低层 `bus.publish(EventMessage(...))` 保留给框架内部、测试和高级用法。
 应用不需要知道 `service_id`、`instance_id`、`eventgroup_id`、端口或传输类型。
 
 ## 2. 绑定/配置层
@@ -197,6 +218,7 @@ src/tinysoa/
 | 1 | `EventBusConfig` / `TopicBinding` / `create_event_bus`，应用只写 topic | ✅ |
 | 2 | 抽 `SomeIPEndpoint`，event 共享端点 | ✅ |
 | 3 | `SomeIPMethodInvoker` + `ServiceInvoker` | ✅ |
+| 3.5 | 统一 `SomeIPServiceInstance`（event + method 同服务实例） | ✅ |
 | 4 | `SomeIPField` 门面 | 待做 |
 | 5 | `Codec` 抽象 | 待做 |
 | 6 | E2E 单 profile | 待做 |

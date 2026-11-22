@@ -60,13 +60,16 @@
 |---------|---------|------|---------|
 | `EventBus` ABC | ✅ 4 抽象方法 + `topology` | — | — |
 | `ManagedEventBus` | ✅ `async start()/stop()` | — | — |
+| `TopicPublisher` / `TopicSubscriber` | ✅ 应用层门面，封装 topic / `EventMessage` | TCP/SOME-IP 共用 | — |
+| `SomeIPService` | ✅ 应用层门面：publisher/subscriber/method/invoke，共享一个 endpoint | field 待接入 | Phase 4 |
 | `EventBusBroker` ABC | ✅ `start()/stop()` | 目前只有 TCP 实现 | 后续 broker 拓扑（如 MQTT 客户端对接外部 broker）复用 |
 | `BrokerEventBus` | ✅ 通用 broker 客户端，注入 `MessageStream` | — | 新 transport 只需实现 `MessageStream` |
 | `InMemoryEventBus` | ✅ `topology=LOCAL` | — | — |
-| `SomeIPEndpoint` | ✅ 共享 SD/transport/publisher/subscriber，供 event/method/field 复用 | method/field 尚未接入 | Phase 2+ 接入 `SomeIPMethodInvoker` / `SomeIPField` |
+| `SomeIPEndpoint` | ✅ 共享 SD/transport/service instance，供 event/method/field 复用 | field 尚未接入 | Phase 4 接入 `SomeIPField` |
+| `SomeIPServiceInstance` | ✅ 一个 `(service_id, instance_id)` 对应一个 `SimpleService`；eventgroup + method 共享端点/Offer | — | — |
 | `SomeIPEventBus` | ✅ `topology=PEER` + SD/eventgroup 映射；委托 `SomeIPEndpoint` | WSL2 loopback 偶发不稳定 | CI 环境（Linux clean loopback）验证 |
 | `SomeIPMethodInvoker` | ✅ `ServiceInvoker` 实现：SD 发现 + REQUEST/RESPONSE + JSON | 无 field/E2E/TP | Phase 4+ 扩展 |
-| `SomeIPMethodDispatcher` | ✅ server-side method 注册 + RESPONSE/ERROR | event/method 同服务实例尚未合并 | 统一 `SomeIPServiceInstance` |
+| `SomeIPMethodDispatcher` | ✅ server-side method 注册 + RESPONSE/ERROR；复用 `SomeIPServiceInstance` | field 尚未接入 | Phase 4 字段门面 |
 | `TCPEventBus` + `TCPEventBusBroker` | ✅ `topology=BROKER`，`TCPEventBus` 是 `BrokerEventBus + TCPMessageStream` 的薄适配器 | 设计中无 TCP 设计文档 | 新增 `design/10-tcp-protocol.md` |
 | `EventMessage` | ✅ | — | — |
 

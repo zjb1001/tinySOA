@@ -19,6 +19,7 @@ from .tcp import (
     TCPEventBusServer,
     TCPMessageStream,
 )
+from .topic import TopicPublisher, TopicSubscriber
 
 # SomeIPEventBus depends on the vendored pysomeip package (third_party/pysomeip/).
 # It is the heavyweight of the three stacks; import it lazily so that a missing
@@ -26,8 +27,10 @@ from .tcp import (
 # TCP users from importing *anything* from tinysoa.eventbus.
 try:
     from .someip import (
+        SomeIPEndpoint,
         SomeIPEventBus,
         SomeIPPublisher,
+        SomeIPServiceInstance,
         SomeIPSubscriber,
         SomeIPTopicMapping,
     )
@@ -37,15 +40,19 @@ try:
         SomeIPRemoteError,
         SomeIPServiceBinding,
     )
+    from .someip_service import SomeIPService
 except ImportError:  # pragma: no cover — someip is vendored and always present
+    SomeIPEndpoint = None  # type: ignore[assignment,misc]
     SomeIPEventBus = None  # type: ignore[assignment,misc]
     SomeIPTopicMapping = None  # type: ignore[assignment,misc]
     SomeIPPublisher = None  # type: ignore[assignment,misc]
+    SomeIPServiceInstance = None  # type: ignore[assignment,misc]
     SomeIPSubscriber = None  # type: ignore[assignment,misc]
     SomeIPMethodDispatcher = None  # type: ignore[assignment,misc]
     SomeIPMethodInvoker = None  # type: ignore[assignment,misc]
     SomeIPRemoteError = None  # type: ignore[assignment,misc]
     SomeIPServiceBinding = None  # type: ignore[assignment,misc]
+    SomeIPService = None  # type: ignore[assignment,misc]
 
 __all__ = [
     "EventBus",
@@ -60,17 +67,22 @@ __all__ = [
     "TCPEventBusClient",
     "TCPEventBusServer",
     "TCPMessageStream",
+    "SomeIPEndpoint",
     "SomeIPEventBus",
     "SomeIPTopicMapping",
     "SomeIPPublisher",
+    "SomeIPServiceInstance",
     "SomeIPSubscriber",
     "SomeIPMethodDispatcher",
     "SomeIPMethodInvoker",
     "SomeIPRemoteError",
+    "SomeIPService",
     "SomeIPServiceBinding",
     "EventMessage",
     "EventHandler",
     "Subscription",
+    "TopicPublisher",
+    "TopicSubscriber",
     "get_event_bus",
     "set_event_bus",
 ]

@@ -31,6 +31,7 @@ make -C examples smoke-all
 | `local_vehicle_platform` | LOCAL | 单进程 | `local_vehicle_platform.app` | Container 依赖/生命周期/健康检查 |
 | `local_pubsub_topologies` | LOCAL | 单进程 | `local_pubsub_topologies.app` | 1v1 / 1vN / Nv1 应用 API 观察 |
 | `tcp_pubsub_one_to_many` | BROKER | broker + pub + N sub | `tcp_pubsub_one_to_many.{server,publisher,subscriber}` | TCP 中心 broker 扇出 |
+| `someip_pubsub_one_to_one` | PEER | 1 pub + 1 sub | `someip_pubsub_one_to_one.{publisher,subscriber}` | 1v1：最小 `SomeIPService` 事件链路 |
 | `someip_pubsub_one_to_many` | PEER | 1 pub + N sub | `someip_pubsub_one_to_many.{publisher,subscriber}` | 1vN：`SomeIPService` 门面、同一服务多订阅者 |
 | `someip_pubsub_multi_sensor` | PEER | 3 pub + agg | `someip_pubsub_multi_sensor.*` | Nv1：多服务发现、聚合仪表盘 |
 | `someip_method_call` | PEER | server + client | `someip_method_call.{server,client}` | SOME/IP RPC（`SomeIPService` 门面） |
@@ -63,6 +64,8 @@ make -C examples tmux-pubsub
 make -C examples smoke-pubsub
 
 # SOME/IP
+make -C examples tmux-someip-one-to-one
+make -C examples smoke-someip-one-to-one
 make -C examples tmux-someip-one-to-many
 make -C examples smoke-someip-one-to-many
 make -C examples tmux-someip

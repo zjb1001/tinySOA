@@ -35,6 +35,7 @@ LOCAL_INTERCEPTORS := $(SELF_DIR)local_interceptor_auth/
 LOCAL_VDP := $(SELF_DIR)local_vehicle_platform/
 LOCAL_TOPOLOGIES := $(SELF_DIR)local_pubsub_topologies/
 TCP_ONE := $(SELF_DIR)tcp_pubsub_one_to_many/
+SOMEIP_ONE_ONE := $(SELF_DIR)someip_pubsub_one_to_one/
 SOMEIP_ONE_MANY := $(SELF_DIR)someip_pubsub_one_to_many/
 SOMEIP_MULTI := $(SELF_DIR)someip_pubsub_multi_sensor/
 SOMEIP_CALL := $(SELF_DIR)someip_method_call/
@@ -57,6 +58,8 @@ help: ## 显示帮助
 	@echo "  make smoke-pubsub               冒烟：一发多收"
 	@echo ""
 	@echo "=== SOME/IP（PEER 拓扑） ==="
+	@echo "  make tmux-someip-one-to-one     tmux：一对一"
+	@echo "  make smoke-someip-one-to-one    冒烟：一对一"
 	@echo "  make tmux-someip-one-to-many    tmux：一发多收"
 	@echo "  make smoke-someip-one-to-many   冒烟：一发多收"
 	@echo "  make tmux-someip                tmux：多传感器"
@@ -130,9 +133,22 @@ logs-pubsub:
 # =========================================================================
 # SOME/IP pub/sub
 # =========================================================================
-.PHONY: tmux-someip-one-to-many smoke-someip-one-to-many \
+.PHONY: tmux-someip-one-to-one smoke-someip-one-to-one \
+        start-someip-one-to-one stop-someip-one-to-one logs-someip-one-to-one \
+        tmux-someip-one-to-many smoke-someip-one-to-many \
         start-someip-one-to-many stop-someip-one-to-many logs-someip-one-to-many \
         tmux-someip smoke-someip start-someip stop-someip logs-someip
+tmux-someip-one-to-one:
+	@$(MAKE) -C $(SOMEIP_ONE_ONE) tmux
+smoke-someip-one-to-one:
+	@$(MAKE) -C $(SOMEIP_ONE_ONE) smoke
+start-someip-one-to-one:
+	@$(MAKE) -C $(SOMEIP_ONE_ONE) start
+stop-someip-one-to-one:
+	@$(MAKE) -C $(SOMEIP_ONE_ONE) stop
+logs-someip-one-to-one:
+	@$(MAKE) -C $(SOMEIP_ONE_ONE) logs
+
 tmux-someip-one-to-many:
 	@$(MAKE) -C $(SOMEIP_ONE_MANY) tmux
 smoke-someip-one-to-many:
@@ -159,10 +175,11 @@ logs-someip:
 # 全局
 # =========================================================================
 .PHONY: start-all stop-all status-all smoke-all clean-all
-start-all: start-someip-one-to-many start-pubsub start-someip ## 后台启动所有常驻组
+start-all: start-someip-one-to-one start-someip-one-to-many start-pubsub start-someip ## 后台启动所有常驻组
 	@echo ">> 所有常驻示例组已后台启动"
 
 stop-all: ## 停止全部示例组
+	@$(MAKE) -C $(SOMEIP_ONE_ONE) stop 2>/dev/null || true
 	@$(MAKE) -C $(SOMEIP_ONE_MANY) stop 2>/dev/null || true
 	@$(MAKE) -C $(TCP_ONE) stop 2>/dev/null || true
 	@$(MAKE) -C $(SOMEIP_MULTI) stop 2>/dev/null || true
@@ -170,10 +187,11 @@ stop-all: ## 停止全部示例组
 
 status-all: ## 查看全部示例组状态
 	@echo "=== tcp_pubsub_one_to_many ==="; $(MAKE) --no-print-directory -C $(TCP_ONE) status
+	@echo "=== someip_pubsub_one_to_one ==="; $(MAKE) --no-print-directory -C $(SOMEIP_ONE_ONE) status
 	@echo "=== someip_pubsub_one_to_many ==="; $(MAKE) --no-print-directory -C $(SOMEIP_ONE_MANY) status
 	@echo "=== someip_pubsub_multi_sensor ==="; $(MAKE) --no-print-directory -C $(SOMEIP_MULTI) status
 
-smoke-all: echo interceptors topologies smoke-pubsub smoke-someip-one-to-many smoke-someip smoke-vdp smoke-calc ## 顺序跑稳定冒烟组
+smoke-all: echo interceptors topologies smoke-pubsub smoke-someip-one-to-one smoke-someip-one-to-many smoke-someip smoke-vdp smoke-calc ## 顺序跑稳定冒烟组
 	@echo ">> 所有冒烟测试完成"
 
 clean-all: stop-all ## 停止全部进程并清理产物
@@ -182,6 +200,7 @@ clean-all: stop-all ## 停止全部进程并清理产物
 	@$(MAKE) -C $(LOCAL_VDP) clean 2>/dev/null || true
 	@$(MAKE) -C $(LOCAL_TOPOLOGIES) clean 2>/dev/null || true
 	@$(MAKE) -C $(TCP_ONE) clean 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_ONE_ONE) clean 2>/dev/null || true
 	@$(MAKE) -C $(SOMEIP_ONE_MANY) clean 2>/dev/null || true
 	@$(MAKE) -C $(SOMEIP_MULTI) clean 2>/dev/null || true
 	@$(MAKE) -C $(SOMEIP_CALL) clean 2>/dev/null || true

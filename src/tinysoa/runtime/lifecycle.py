@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Callable, Dict, List, Optional
 
-from tinysoa.core.model import Service, ServiceStatus
 from tinysoa.core.errors import StateError
+from tinysoa.core.model import Service, ServiceStatus
 from tinysoa.runtime.container import Container
 
 
@@ -21,7 +21,7 @@ class HealthStatus(str, Enum):
 class HealthCheckResult:
     status: HealthStatus
     message: str = ""
-    checked_at: datetime = None
+    checked_at: Optional[datetime] = None
 
     def __post_init__(self):
         if self.checked_at is None:
@@ -52,19 +52,23 @@ class DefaultHealthChecker(HealthChecker):
         elif service.status == ServiceStatus.TERMINATED:
             return HealthCheckResult(HealthStatus.UNHEALTHY, "Service is terminated")
         else:
-            return HealthCheckResult(HealthStatus.UNKNOWN, f"Service in {service.status}")
+            return HealthCheckResult(
+                HealthStatus.UNKNOWN, f"Service in {service.status}"
+            )
 
 
 class LifecycleManager:
     """Manages service lifecycle: start, stop, health checks, and hooks.
-    
+
     Provides hooks for on_start, on_stop, on_terminate, and health checks.
     """
 
-    def __init__(self, container: Container, health_checker: Optional[HealthChecker] = None):
+    def __init__(
+        self, container: Container, health_checker: Optional[HealthChecker] = None
+    ):
         self._container = container
         self._health_checker = health_checker or DefaultHealthChecker()
-        
+
         self._on_start_hooks: List[LifecycleHook] = []
         self._on_stop_hooks: List[LifecycleHook] = []
         self._on_terminate_hooks: List[LifecycleHook] = []
@@ -86,13 +90,13 @@ class LifecycleManager:
         service = self._container.get_service(service_id)
         if not service:
             raise StateError(f"Service {service_id} not found in container")
-        
+
         # Register if needed
         if service.status == ServiceStatus.INIT:
             service.register()
-        
+
         service.start()
-        
+
         # Run hooks
         for hook in self._on_start_hooks:
             hook(service)
@@ -102,9 +106,9 @@ class LifecycleManager:
         service = self._container.get_service(service_id)
         if not service:
             raise StateError(f"Service {service_id} not found in container")
-        
+
         service.stop()
-        
+
         # Run hooks
         for hook in self._on_stop_hooks:
             hook(service)
@@ -114,9 +118,9 @@ class LifecycleManager:
         service = self._container.get_service(service_id)
         if not service:
             raise StateError(f"Service {service_id} not found in container")
-        
+
         service.terminate()
-        
+
         # Run hooks
         for hook in self._on_terminate_hooks:
             hook(service)
@@ -124,7 +128,11 @@ class LifecycleManager:
     def start_all(self) -> None:
         """Start all services in the container."""
         for service in self._container.list_services():
-            if service.status in (ServiceStatus.INIT, ServiceStatus.REGISTERED, ServiceStatus.STOPPED):
+            if service.status in (
+                ServiceStatus.INIT,
+                ServiceStatus.REGISTERED,
+                ServiceStatus.STOPPED,
+            ):
                 try:
                     self.start_service(service.id)
                 except StateError:
@@ -153,10 +161,9 @@ class LifecycleManager:
         service = self._container.get_service(service_id)
         if not service:
             return HealthCheckResult(
-                HealthStatus.UNKNOWN,
-                f"Service {service_id} not found"
+                HealthStatus.UNKNOWN, f"Service {service_id} not found"
             )
-        
+
         return self._health_checker.check(service)
 
     def check_all_health(self) -> Dict[int, HealthCheckResult]:

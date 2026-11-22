@@ -8,6 +8,12 @@ __pycache__/
 *.pid
 *.log
 
+# local CI / agent flow
+.agent-flow/
+.coverage
+coverage.xml
+htmlcov/
+
 # editors / OS
 .vscode/
 .idea/

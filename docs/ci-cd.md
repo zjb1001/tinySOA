@@ -1,0 +1,97 @@
+# 本地 CI/CD
+
+tinySOA 当前采用 **本地 CI 脚本**（不依赖 GitHub Actions）。目标是把“改完就跑
+一次”固化成可重复的门禁，同时为后续接入任何 CI 平台保留同一套命令。
+
+## 门禁策略
+
+| 检查 | 默认行为 | 说明 |
+|---|---|---|
+| `pytest tests` | **阻断** | 任何失败退出码非 0 |
+| `ruff check` | 告警 | 未安装则 SKIP |
+| `black --check` | 告警 | 未安装则 SKIP |
+| `mypy src/tinysoa` | 告警 | 未安装则 SKIP |
+| examples smoke | 可选 | `--with-smoke` / `--smoke-only` |
+
+`--strict` 会把 ruff/black/mypy 的告警升级为阻断。等基线清理干净后再把默认值改成严格。
+
+## 常用命令
+
+```bash
+# 推荐入口（根目录 Makefile）
+make ci                  # pytest 阻断 + 质量检查告警
+make ci-strict           # 全部阻断
+make ci-coverage         # pytest + coverage
+make test                # 只跑 pytest
+make lint                # ruff + black
+make typecheck           # mypy
+make smoke               # examples 稳定冒烟组
+
+# 直接调用脚本
+bash scripts/ci.sh
+bash scripts/ci.sh --strict
+bash scripts/ci.sh --tests-only
+bash scripts/ci.sh --with-smoke
+bash scripts/ci.sh --coverage
+```
+
+环境变量：
+
+- `PYTHON`：解释器，默认 `.venv/bin/python`，否则 `python3`。
+- `CI_ROOT`：要测试的仓库根目录，默认脚本上一级。
+
+## 安装开发工具
+
+```bash
+python -m pip install -r requirements-dev.txt
+```
+
+如果只想跑测试，至少需要 `pytest` 和 `pytest-asyncio`。`pyproject.toml` 已配置
+`pythonpath = ["src", "third_party/pysomeip/src"]`，脚本也会显式设置
+`PYTHONPATH`，两种方式都可用。
+
+## 冒烟组
+
+`make smoke` 只跑稳定、可重复的子集：
+
+```bash
+make -C examples smoke-vdp smoke-calc smoke-pubsub smoke-multipub
+```
+
+SOME/IP 事件冒烟（`smoke-echo-someip`、`smoke-someip`）默认参数存在订阅延迟竞态，
+WSL2 回环上也不稳定，因此没有放进默认冒烟组。需要时手工执行：
+
+```bash
+make -C examples smoke-echo-someip SMOKE_COUNT=20 SMOKE_INTERVAL=1
+make -C examples smoke-someip SMOKE_COUNT=30 SMOKE_INTERVAL=0.5 AGG_COUNT=9
+```
+
+## 本地发布（CD）
+
+`scripts/release.sh` 把“验证过的源码快照”作为发布单元：
+
+```bash
+# 仅创建本地 tag，不推送
+bash scripts/release.sh --version v0.3.0
+
+# 跑 CI -> 打 tag -> 推送 -> 创建 GitHub Release
+bash scripts/release.sh --version v0.3.0 --notes RELEASE_NOTES.md --yes
+```
+
+前提：工作区干净、当前在 `main`、本地不比 `origin/main` 落后、`gh` 已登录。
+发布不会构建 wheel 或部署服务；仓库当前没有打包/部署目标。
+
+## 后续接入 GitHub Actions
+
+如果以后要搬到 GitHub Actions，直接复用 `scripts/ci.sh` 即可，例如：
+
+```yaml
+- uses: actions/checkout@v4
+  with: { submodules: recursive }
+- uses: actions/setup-python@v5
+  with: { python-version: "3.12" }
+- run: python -m pip install -r requirements-dev.txt
+- run: bash scripts/ci.sh
+```
+
+这样本地和 CI 不会出现两套命令漂移。

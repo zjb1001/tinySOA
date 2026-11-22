@@ -6,7 +6,7 @@ import logging
 import socket
 from dataclasses import dataclass
 from threading import Lock
-from typing import Awaitable, Callable, Dict, List, Optional, Tuple
+from typing import Awaitable, Callable, Dict, Iterable, List, Optional, Tuple
 
 from someip.config import Eventgroup
 from someip.header import _T_SOCKNAME, L4Protocols, SOMEIPHeader, SOMEIPMessageType
@@ -337,6 +337,216 @@ class SomeIPSubscriber:
                 pass
 
 
+class SomeIPEndpoint:
+    """Shared SOME/IP participant: SD, transports, publishers, subscriber.
+
+    Event, method, and field adapters can share one endpoint per process so SD
+    announcements, unicast ports, and teardown are not duplicated.
+    """
+
+    def __init__(
+        self,
+        local_ip: str = "127.0.0.1",
+        publisher_port: int = 30490,
+        is_publisher: bool = True,
+        mappings: Optional[Iterable[SomeIPTopicMapping]] = None,
+    ):
+        self.local_ip = local_ip
+        self.publisher_port_base = publisher_port
+        self.is_publisher = is_publisher
+        self.logger = logging.getLogger(__name__)
+
+        self._publishers: Dict[Tuple[int, int], SomeIPPublisher] = {}
+        self._subscriber: Optional[SomeIPSubscriber] = None
+        self._sd_prot = None
+        self._sd_announcer = None
+        self._sd_trsp_u = None
+        self._sd_trsp_m = None
+        self._started = False
+
+        # Pre-allocate ports for all services known at construction time.
+        self._service_ports: Dict[Tuple[int, int], int] = {}
+        for mapping in mappings or ():
+            service_key = (mapping.service_id, mapping.instance_id)
+            if service_key not in self._service_ports:
+                port = _get_service_port(
+                    mapping.service_id, mapping.instance_id, publisher_port
+                )
+                self._service_ports[service_key] = port
+                self.logger.debug(
+                    "Pre-allocated port %d for Service %#x:%#x",
+                    port,
+                    mapping.service_id,
+                    mapping.instance_id,
+                )
+
+    @property
+    def started(self) -> bool:
+        return self._started
+
+    @started.setter
+    def started(self, value: bool) -> None:
+        self._started = value
+
+    @property
+    def subscriber(self) -> Optional[SomeIPSubscriber]:
+        return self._subscriber
+
+    @subscriber.setter
+    def subscriber(self, value: Optional[SomeIPSubscriber]) -> None:
+        self._subscriber = value
+
+    @property
+    def publishers(self) -> Dict[Tuple[int, int], SomeIPPublisher]:
+        return self._publishers
+
+    @property
+    def service_ports(self) -> Dict[Tuple[int, int], int]:
+        return self._service_ports
+
+    async def start(self) -> None:
+        """Initialize SD, transports, and the subscriber-side discovery."""
+        if self._started:
+            self.logger.warning("SomeIPEndpoint already started")
+            return
+
+        mode = "publisher" if self.is_publisher else "subscriber"
+        self.logger.info(
+            "Starting SomeIPEndpoint on %s (ports starting from %d) [%s mode]",
+            self.local_ip,
+            self.publisher_port_base,
+            mode,
+        )
+
+        try:
+            sd_trsp_u, sd_trsp_m, sd_prot = (
+                await ServiceDiscoveryProtocol.create_endpoints(
+                    family=socket.AF_INET,
+                    local_addr=self.local_ip,
+                    multicast_addr="224.224.224.245",
+                )
+            )
+            self._sd_prot = sd_prot
+            self._sd_trsp_u = sd_trsp_u
+            self._sd_trsp_m = sd_trsp_m
+            sd_prot.start()
+
+            if self.is_publisher:
+                self._sd_announcer = sd_prot.announcer
+                self.logger.info(
+                    "Service Discovery initialized (publisher mode with announcer)"
+                )
+            else:
+                self._sd_announcer = None
+                self.logger.info(
+                    "Service Discovery initialized (subscriber mode, discovery only)"
+                )
+        except OSError as e:
+            # Another process may already own SD port 30490; subscriptions can
+            # still work through the shared multicast group.
+            self.logger.info("SD creation failed (expected in multi-process): %s", e)
+            self._sd_announcer = None
+            self._sd_prot = None
+            self._sd_trsp_u = None
+            self._sd_trsp_m = None
+
+        self._subscriber = SomeIPSubscriber(self.local_ip, sd_protocol=self._sd_prot)
+        await self._subscriber.start()
+        self._started = True
+        self.logger.info("SomeIPEndpoint started successfully")
+
+    async def stop(self) -> None:
+        """Stop publishers, the subscriber, and SD transports."""
+        if not self._started:
+            return
+
+        self.logger.info("Stopping SomeIPEndpoint...")
+        for publisher in self._publishers.values():
+            publisher.stop()
+        self._publishers.clear()
+
+        if self._subscriber:
+            self._subscriber.stop()
+            self._subscriber = None
+
+        if self._sd_prot:
+            try:
+                self._sd_prot.stop()
+            except Exception:
+                pass
+        for trsp_name in ("_sd_trsp_u", "_sd_trsp_m"):
+            trsp = getattr(self, trsp_name, None)
+            if trsp:
+                try:
+                    trsp.close()
+                except Exception:
+                    pass
+                setattr(self, trsp_name, None)
+
+        self._started = False
+        self.logger.info("SomeIPEndpoint stopped")
+
+    async def get_or_create_publisher(
+        self,
+        service_id: int,
+        instance_id: int,
+        major_version: int,
+        eventgroup_id: int,
+        on_notification: Callable[[bytes], Awaitable[None]],
+    ) -> SomeIPPublisher:
+        """Return the service publisher, creating and announcing it once."""
+        service_key = (service_id, instance_id)
+        publisher = self._publishers.get(service_key)
+        if publisher is None:
+            port = self._service_ports.get(service_key)
+            if port is None:
+                port = _get_service_port(
+                    service_id, instance_id, self.publisher_port_base
+                )
+                self._service_ports[service_key] = port
+            publisher = SomeIPPublisher(
+                service_id=service_id,
+                instance_id=instance_id,
+                major_version=major_version,
+                local_addr=self.local_ip,
+                port=port,
+            )
+            publisher.add_eventgroup(eventgroup_id, on_notification)
+            await publisher.start(self._sd_announcer)
+            self._publishers[service_key] = publisher
+        return publisher
+
+    async def subscribe(
+        self,
+        service_id: int,
+        instance_id: int,
+        eventgroup_id: int,
+        major_version: int,
+        on_notification: Callable[[bytes], Awaitable[None]],
+    ) -> None:
+        """Subscribe to a remote eventgroup through SD."""
+        if self._subscriber is None:
+            raise RuntimeError("SomeIPEndpoint is not started")
+        await self._subscriber.subscribe(
+            service_id=service_id,
+            instance_id=instance_id,
+            eventgroup_id=eventgroup_id,
+            major_version=major_version,
+            on_notification=on_notification,
+        )
+
+    async def unsubscribe(
+        self, service_id: int, instance_id: int, eventgroup_id: int
+    ) -> None:
+        """Stop a remote eventgroup subscription."""
+        if self._subscriber is not None:
+            await self._subscriber.unsubscribe(
+                service_id=service_id,
+                instance_id=instance_id,
+                eventgroup_id=eventgroup_id,
+            )
+
+
 class SomeIPEventBus(ManagedEventBus):
     """
     EventBus implementation over SOME/IP.
@@ -362,124 +572,72 @@ class SomeIPEventBus(ManagedEventBus):
         is_publisher: bool = True,
     ):
         self.mappings = mappings
-        self.local_ip = local_ip
-        self.publisher_port_base = publisher_port
-        self.is_publisher = is_publisher
         self.logger = logging.getLogger(__name__)
 
         # Local subscriptions (topic -> list of handlers)
         self._subscriptions: Dict[str, List[Subscription]] = {}
 
-        # SOME/IP Protocol stack
-        self._publishers: Dict[Tuple[int, int], SomeIPPublisher] = (
-            {}
-        )  # (service_id, instance_id)
-        self._subscriber: Optional[SomeIPSubscriber] = None
-        self._sd_announcer = None
-        self._started = False
-
-        # Pre-allocate ports for all services in this EventBus
-        self._service_ports: Dict[Tuple[int, int], int] = {}
-        for topic, mapping in mappings.items():
-            service_key = (mapping.service_id, mapping.instance_id)
-            if service_key not in self._service_ports:
-                port = _get_service_port(
-                    mapping.service_id, mapping.instance_id, publisher_port
-                )
-                self._service_ports[service_key] = port
-                self.logger.debug(
-                    f"Pre-allocated port {port} for Service {mapping.service_id:#x}:"
-                    f"{mapping.instance_id:#x}"
-                )
-
-    async def start(self):
-        """Initialize SOME/IP protocol stack (SD + endpoints)."""
-        if self._started:
-            self.logger.warning("SomeIPEventBus already started")
-            return
-
-        mode = "publisher" if self.is_publisher else "subscriber"
-        self.logger.info(
-            f"Starting SomeIPEventBus on {self.local_ip} (ports starting from {self.publisher_port_base}) [{mode} mode]"
+        # SD, transports, publishers and subscriber are shared with future
+        # method/field adapters through one endpoint.
+        self._endpoint = SomeIPEndpoint(
+            local_ip=local_ip,
+            publisher_port=publisher_port,
+            is_publisher=is_publisher,
+            mappings=mappings.values(),
         )
 
-        # Initialize Service Discovery
-        try:
-            sd_trsp_u, sd_trsp_m, sd_prot = (
-                await ServiceDiscoveryProtocol.create_endpoints(
-                    family=socket.AF_INET,
-                    local_addr=self.local_ip,
-                    multicast_addr="224.224.224.245",
-                )
-            )
+    # Compatibility accessors for callers/tests that used the old internals.
+    @property
+    def local_ip(self) -> str:
+        return self._endpoint.local_ip
 
-            self._sd_prot = sd_prot
-            self._sd_trsp_u = sd_trsp_u
-            self._sd_trsp_m = sd_trsp_m
-            sd_prot.start()
+    @property
+    def publisher_port_base(self) -> int:
+        return self._endpoint.publisher_port_base
 
-            if self.is_publisher:
-                # Publisher: set announcer for advertising services
-                self._sd_announcer = sd_prot.announcer
-                self.logger.info(
-                    "Service Discovery initialized (publisher mode with announcer)"
-                )
-            else:
-                # Subscriber: disable announcer, only use discovery
-                self._sd_announcer = None
-                self.logger.info(
-                    "Service Discovery initialized (subscriber mode, discovery only)"
-                )
+    @property
+    def is_publisher(self) -> bool:
+        return self._endpoint.is_publisher
 
-        except OSError as e:
-            # In multi-process scenarios where another process already created SD on this port
-            # (e.g., port 30490 busy), we still allow subscription through shared multicast
-            self.logger.info(f"SD creation failed (expected in multi-process): {e}")
-            self._sd_announcer = None
-            self._sd_prot = None
-            self._sd_trsp_u = None
-            self._sd_trsp_m = None
+    @property
+    def _started(self) -> bool:
+        return self._endpoint.started
 
-        # Initialize subscriber (for remote service discovery)
-        self._subscriber = SomeIPSubscriber(self.local_ip, sd_protocol=self._sd_prot)
-        await self._subscriber.start()
+    @_started.setter
+    def _started(self, value: bool) -> None:
+        self._endpoint.started = value
 
-        self._started = True
+    @property
+    def _publishers(self) -> Dict[Tuple[int, int], SomeIPPublisher]:
+        return self._endpoint.publishers
+
+    @property
+    def _service_ports(self) -> Dict[Tuple[int, int], int]:
+        return self._endpoint.service_ports
+
+    @property
+    def _subscriber(self) -> Optional[SomeIPSubscriber]:
+        return self._endpoint.subscriber
+
+    @_subscriber.setter
+    def _subscriber(self, value: Optional[SomeIPSubscriber]) -> None:
+        self._endpoint.subscriber = value
+
+    async def start(self):
+        """Initialize the shared SOME/IP endpoint (SD + transports)."""
+        if self._endpoint.started:
+            self.logger.warning("SomeIPEventBus already started")
+            return
+        self.logger.info("Starting SomeIPEventBus ...")
+        await self._endpoint.start()
         self.logger.info("SomeIPEventBus started successfully")
 
     async def stop(self):
-        """Shutdown SOME/IP stack."""
-        if not self._started:
+        """Shutdown the shared SOME/IP endpoint."""
+        if not self._endpoint.started:
             return
-
         self.logger.info("Stopping SomeIPEventBus...")
-
-        # Stop all publishers
-        for publisher in self._publishers.values():
-            publisher.stop()
-        self._publishers.clear()
-
-        # Stop subscriber
-        if self._subscriber:
-            self._subscriber.stop()
-            self._subscriber = None
-
-        # Stop SD and close transports if we created them
-        if getattr(self, "_sd_prot", None):
-            try:
-                self._sd_prot.stop()
-            except Exception:
-                pass
-        for trsp_name in ("_sd_trsp_u", "_sd_trsp_m"):
-            trsp = getattr(self, trsp_name, None)
-            if trsp:
-                try:
-                    trsp.close()
-                except Exception:
-                    pass
-                setattr(self, trsp_name, None)
-
-        self._started = False
+        await self._endpoint.stop()
         self.logger.info("SomeIPEventBus stopped")
 
     async def publish(self, message: EventMessage) -> None:
@@ -503,31 +661,13 @@ class SomeIPEventBus(ManagedEventBus):
 
         payload = self._serialize_message(message)
 
-        # Get or create publisher for this service
-        service_key = (mapping.service_id, mapping.instance_id)
-        if service_key not in self._publishers:
-            # Use pre-allocated port for this service
-            publisher_port = self._service_ports.get(
-                service_key,
-                _get_service_port(
-                    mapping.service_id, mapping.instance_id, self.publisher_port_base
-                ),
-            )
-
-            publisher = SomeIPPublisher(
-                service_id=mapping.service_id,
-                instance_id=mapping.instance_id,
-                major_version=mapping.major_version,
-                local_addr=self.local_ip,
-                port=publisher_port,
-            )
-            publisher.add_eventgroup(
-                mapping.eventgroup_id, self._create_notification_handler(message.topic)
-            )
-            await publisher.start(self._sd_announcer)
-            self._publishers[service_key] = publisher
-
-        publisher = self._publishers[service_key]
+        publisher = await self._endpoint.get_or_create_publisher(
+            service_id=mapping.service_id,
+            instance_id=mapping.instance_id,
+            major_version=mapping.major_version,
+            eventgroup_id=mapping.eventgroup_id,
+            on_notification=self._create_notification_handler(message.topic),
+        )
         await publisher.notify(mapping.eventgroup_id, mapping.event_id, payload)
 
         self.logger.debug(
@@ -589,10 +729,6 @@ class SomeIPEventBus(ManagedEventBus):
         self, mapping: SomeIPTopicMapping, topic: str, seq_num: int
     ) -> None:
         """Initiate SOME/IP subscription through Service Discovery."""
-        if not self._subscriber:
-            self.logger.error("Subscriber not initialized")
-            return
-
         try:
             # Calculate delay: Wait long enough for ALL publishers to start and announce
             # Base delay of 5 seconds ensures all publishers are ready
@@ -624,7 +760,7 @@ class SomeIPEventBus(ManagedEventBus):
                         f"Failed to deserialize notification for {topic}: {e}"
                     )
 
-            await self._subscriber.subscribe(
+            await self._endpoint.subscribe(
                 service_id=mapping.service_id,
                 instance_id=mapping.instance_id,
                 eventgroup_id=mapping.eventgroup_id,
@@ -641,12 +777,11 @@ class SomeIPEventBus(ManagedEventBus):
 
     async def _stop_subscription(self, mapping: SomeIPTopicMapping) -> None:
         """Stop SOME/IP subscription through Service Discovery."""
-        if self._subscriber:
-            await self._subscriber.unsubscribe(
-                service_id=mapping.service_id,
-                instance_id=mapping.instance_id,
-                eventgroup_id=mapping.eventgroup_id,
-            )
+        await self._endpoint.unsubscribe(
+            service_id=mapping.service_id,
+            instance_id=mapping.instance_id,
+            eventgroup_id=mapping.eventgroup_id,
+        )
 
     def _serialize_message(self, message: EventMessage) -> bytes:
         """Convert EventMessage to bytes for SOME/IP payload."""

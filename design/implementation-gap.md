@@ -63,7 +63,8 @@
 | `EventBusBroker` ABC | ✅ `start()/stop()` | 目前只有 TCP 实现 | 后续 broker 拓扑（如 MQTT 客户端对接外部 broker）复用 |
 | `BrokerEventBus` | ✅ 通用 broker 客户端，注入 `MessageStream` | — | 新 transport 只需实现 `MessageStream` |
 | `InMemoryEventBus` | ✅ `topology=LOCAL` | — | — |
-| `SomeIPEventBus` | ✅ `topology=PEER` + SD/eventgroup 映射 | WSL2 loopback 偶发不稳定 | CI 环境（Linux clean loopback）验证 |
+| `SomeIPEndpoint` | ✅ 共享 SD/transport/publisher/subscriber，供 event/method/field 复用 | method/field 尚未接入 | Phase 2+ 接入 `SomeIPMethodInvoker` / `SomeIPField` |
+| `SomeIPEventBus` | ✅ `topology=PEER` + SD/eventgroup 映射；委托 `SomeIPEndpoint` | WSL2 loopback 偶发不稳定 | CI 环境（Linux clean loopback）验证 |
 | `TCPEventBus` + `TCPEventBusBroker` | ✅ `topology=BROKER`，`TCPEventBus` 是 `BrokerEventBus + TCPMessageStream` 的薄适配器 | 设计中无 TCP 设计文档 | 新增 `design/10-tcp-protocol.md` |
 | `EventMessage` | ✅ | — | — |
 

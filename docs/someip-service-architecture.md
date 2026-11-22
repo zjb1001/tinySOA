@@ -10,6 +10,12 @@
 - 应用不再直接 import `SomeIPTopicMapping`
 - `SomeIPEventBus` 仍只覆盖 event/notification
 
+已落地 Phase 2（共享端点）：
+
+- `SomeIPEndpoint` 统一持有 SD、transports、publisher 缓存和 subscriber；
+- `SomeIPEventBus` 只保留 topic 解析、订阅表和序列化，SD/transport 全部委托给 endpoint；
+- 后续 method/field adapter 可以复用同一个 `SomeIPEndpoint`。
+
 method、field、E2E、TP 是后续阶段，本文档描述目标架构。
 
 ## 1. 应用侧
@@ -178,7 +184,7 @@ src/tinysoa/
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | 1 | `EventBusConfig` / `TopicBinding` / `create_event_bus`，应用只写 topic | ✅ |
-| 2 | 抽 `SomeIPEndpoint`，event 共享端点 | 待做 |
+| 2 | 抽 `SomeIPEndpoint`，event 共享端点 | ✅ |
 | 3 | `SomeIPMethodInvoker` + `ServiceInvoker` | 待做 |
 | 4 | `SomeIPField` 门面 | 待做 |
 | 5 | `Codec` 抽象 | 待做 |

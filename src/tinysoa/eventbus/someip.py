@@ -19,6 +19,7 @@ from someip.sd import (
 # Import pysomeip components
 from someip.service import SimpleEventgroup, SimpleService
 
+from tinysoa.core.errors import NotFoundError, StateError
 from tinysoa.eventbus.bus import (
     EventHandler,
     ManagedEventBus,
@@ -95,8 +96,12 @@ class SomeIPEventgroupAdapter(SimpleEventgroup):
         await self.on_notification(payload)
 
 
-class SomeIPPublisher:
-    """Manages SOME/IP service publication."""
+class SomeIPServiceInstance:
+    """One pysomeip SimpleService endpoint for a (service_id, instance_id).
+
+    Eventgroups and methods registered here share one unicast endpoint and one
+    SD Offer, which is required for SOME/IP fields (getter/setter + notifier).
+    """
 
     def __init__(
         self,
@@ -105,10 +110,12 @@ class SomeIPPublisher:
         major_version: int,
         local_addr: str,
         port: int,
+        minor_version: int = 0,
     ):
         self.service_id = service_id
         self.instance_id = instance_id
         self.major_version = major_version
+        self.minor_version = minor_version
         self.local_addr = local_addr
         self.port = port
         self.logger = logging.getLogger(__name__)
@@ -125,6 +132,41 @@ class SomeIPPublisher:
         """The underlying pysomeip service (available after ``start``)."""
         return self._service
 
+    @property
+    def started(self) -> bool:
+        return self._service is not None
+
+    def add_eventgroup(
+        self, eventgroup_id: int, on_notification: Callable[[bytes], Awaitable[None]]
+    ) -> None:
+        """Queue or register an eventgroup before/after ``start``."""
+        if self._service is not None:
+            self.register_eventgroup(eventgroup_id, on_notification)
+            return
+        self._pending_eventgroups.append((eventgroup_id, on_notification))
+
+    def register_eventgroup(
+        self, eventgroup_id: int, on_notification: Callable[[bytes], Awaitable[None]]
+    ) -> SomeIPEventgroupAdapter:
+        """Register an eventgroup on a started service."""
+        if self._service is None:
+            raise RuntimeError("Service not started")
+        existing = self._eventgroups.get(eventgroup_id)
+        if existing is not None:
+            return existing
+        adapter = SomeIPEventgroupAdapter(
+            self._service, eventgroup_id, on_notification, interval=0.5
+        )
+        self._service.register_eventgroup(adapter)
+        self._eventgroups[eventgroup_id] = adapter
+        self.logger.debug(
+            "Registered eventgroup %#06x on service %#06x:%#06x",
+            eventgroup_id,
+            self.service_id,
+            self.instance_id,
+        )
+        return adapter
+
     def register_method(self, method_id: int, handler: Callable) -> None:
         """Register a SOME/IP method handler (sync pysomeip callback)."""
         if method_id in self._methods:
@@ -135,34 +177,19 @@ class SomeIPPublisher:
         else:
             self._pending_methods.append((method_id, handler))
 
-    def add_eventgroup(
-        self, eventgroup_id: int, on_notification: Callable[[bytes], Awaitable[None]]
-    ) -> None:
-        """Queue/register an eventgroup; if not started, register later before SD announce."""
-        if self._service is not None:
-            if eventgroup_id not in self._eventgroups:
-                adapter = SomeIPEventgroupAdapter(
-                    self._service, eventgroup_id, on_notification, interval=0.5
-                )
-                self._service.register_eventgroup(adapter)
-                self._eventgroups[eventgroup_id] = adapter
-            return
-        self._pending_eventgroups.append((eventgroup_id, on_notification))
-
     async def start(self, announcer) -> None:
-        """Start SOME/IP service and announce after registering eventgroups."""
-        # Dynamically create a service class
+        """Create the unicast endpoint, register methods/eventgroups, announce."""
+        if self._service is not None:
+            return
         ServiceClass = type(
             f"Service_{self.service_id:04x}_{self.instance_id:04x}",
             (SimpleService,),
             {
                 "service_id": self.service_id,
                 "version_major": self.major_version,
-                "version_minor": 0,
+                "version_minor": self.minor_version,
             },
         )
-
-        # Bind UDP endpoint without announcing so we can register eventgroups first
         try:
             _trsp, prot = await ServiceClass.create_unicast_endpoint(  # type: ignore[attr-defined]
                 instance_id=self.instance_id, local_addr=(self.local_addr, self.port)
@@ -170,68 +197,112 @@ class SomeIPPublisher:
             self._service = prot
         except OSError as e:
             self.logger.error(
-                f"Failed to bind service to {self.local_addr}:{self.port}: {e}"
+                "Failed to bind service to %s:%d: %s",
+                self.local_addr,
+                self.port,
+                e,
             )
             raise
 
-        # Register pending methods before announce.
         for method_id, handler in self._pending_methods:
             self._service.register_method(method_id, handler)
         self._pending_methods.clear()
 
-        # Register pending eventgroups before announce so SD matches subscriptions
         for eg_id, cb in self._pending_eventgroups:
-            adapter = SomeIPEventgroupAdapter(self._service, eg_id, cb, interval=0.5)
-            self._service.register_eventgroup(adapter)
-            self._eventgroups[eg_id] = adapter
+            self.register_eventgroup(eg_id, cb)
         self._pending_eventgroups.clear()
 
-        # Now announce (if SD announcer is available)
         try:
             if announcer is not None:
                 self._service.start_announce(announcer)
         except Exception as e:
-            self.logger.debug(f"SD announce failed; continuing without: {e}")
+            self.logger.debug("SD announce failed; continuing without: %s", e)
 
         self.logger.info(
-            f"SOME/IP Service {self.service_id:#x}:{self.instance_id:#x} started on "
-            f"{self.local_addr}:{self.port}"
+            "SOME/IP Service %#06x:%#06x started on %s:%d",
+            self.service_id,
+            self.instance_id,
+            self.local_addr,
+            self.port,
         )
 
     def stop(self) -> None:
-        """Stop SOME/IP service."""
-        if self._service:
+        """Stop the underlying SOME/IP service."""
+        if self._service is not None:
             self._service.stop()
+            self._service = None
             self.logger.info(
-                f"SOME/IP Service {self.service_id:#x}:{self.instance_id:#x} stopped"
+                "SOME/IP Service %#06x:%#06x stopped",
+                self.service_id,
+                self.instance_id,
             )
+
+    async def notify(self, eventgroup_id: int, event_id: int, payload: bytes) -> None:
+        """Notify subscribers of an event."""
+        adapter = self._eventgroups.get(eventgroup_id)
+        if adapter is None:
+            raise ValueError(f"Eventgroup {eventgroup_id:#x} not registered")
+        adapter.values[event_id] = payload
+        # notify_once is synchronous in pysomeip SimpleEventgroup
+        adapter.notify_once([event_id])
+
+
+class SomeIPPublisher:
+    """Event-facing facade over a shared :class:`SomeIPServiceInstance`."""
+
+    def __init__(
+        self,
+        service_id: int,
+        instance_id: int,
+        major_version: int,
+        local_addr: str,
+        port: int,
+        instance: Optional[SomeIPServiceInstance] = None,
+    ):
+        self.service_id = service_id
+        self.instance_id = instance_id
+        self.major_version = major_version
+        self.local_addr = local_addr
+        self.port = port
+        self.logger = logging.getLogger(__name__)
+        self._instance = instance or SomeIPServiceInstance(
+            service_id=service_id,
+            instance_id=instance_id,
+            major_version=major_version,
+            local_addr=local_addr,
+            port=port,
+        )
+
+    @property
+    def _service(self) -> Optional[SimpleService]:
+        """Compatibility accessor for callers that inspect the pysomeip service."""
+        return self._instance.service
+
+    @property
+    def service(self) -> Optional[SimpleService]:
+        return self._instance.service
+
+    def add_eventgroup(
+        self, eventgroup_id: int, on_notification: Callable[[bytes], Awaitable[None]]
+    ) -> None:
+        self._instance.add_eventgroup(eventgroup_id, on_notification)
 
     def register_eventgroup(
         self, eventgroup_id: int, on_notification: Callable[[bytes], Awaitable[None]]
     ) -> SomeIPEventgroupAdapter:
-        """Register an eventgroup for publishing."""
-        if not self._service:
-            raise RuntimeError("Service not started")
+        return self._instance.register_eventgroup(eventgroup_id, on_notification)
 
-        adapter = SomeIPEventgroupAdapter(self._service, eventgroup_id, on_notification)
-        self._service.register_eventgroup(adapter)
-        self._eventgroups[eventgroup_id] = adapter
+    def register_method(self, method_id: int, handler: Callable) -> None:
+        self._instance.register_method(method_id, handler)
 
-        self.logger.debug(
-            f"Registered eventgroup {eventgroup_id:#x} on service "
-            f"{self.service_id:#x}:{self.instance_id:#x}"
-        )
-        return adapter
+    async def start(self, announcer) -> None:
+        await self._instance.start(announcer)
+
+    def stop(self) -> None:
+        self._instance.stop()
 
     async def notify(self, eventgroup_id: int, event_id: int, payload: bytes) -> None:
-        """Notify subscribers of an event."""
-        if eventgroup_id not in self._eventgroups:
-            raise ValueError(f"Eventgroup {eventgroup_id:#x} not registered")
-
-        adapter = self._eventgroups[eventgroup_id]
-        adapter.values[event_id] = payload
-        # notify_once is synchronous in pysomeip SimpleEventgroup
-        adapter.notify_once([event_id])
+        await self._instance.notify(eventgroup_id, event_id, payload)
 
 
 class SomeIPSubscriber:
@@ -379,6 +450,7 @@ class SomeIPEndpoint:
         self.logger = logging.getLogger(__name__)
 
         self._publishers: Dict[Tuple[int, int], SomeIPPublisher] = {}
+        self._services: Dict[Tuple[int, int], SomeIPServiceInstance] = {}
         self._subscriber: Optional[SomeIPSubscriber] = None
         self._sd_prot = None
         self._sd_announcer = None
@@ -425,6 +497,38 @@ class SomeIPEndpoint:
     @property
     def service_ports(self) -> Dict[Tuple[int, int], int]:
         return self._service_ports
+
+    @property
+    def services(self) -> Dict[Tuple[int, int], SomeIPServiceInstance]:
+        return self._services
+
+    def get_or_create_service_instance(
+        self,
+        service_id: int,
+        instance_id: int,
+        major_version: int,
+        *,
+        port: Optional[int] = None,
+    ) -> SomeIPServiceInstance:
+        """Return the shared service instance for a service/instance pair."""
+        service_key = (service_id, instance_id)
+        instance = self._services.get(service_key)
+        if instance is not None:
+            return instance
+        if port is None:
+            port = self._service_ports.get(service_key)
+        if port is None:
+            port = _get_service_port(service_id, instance_id, self.publisher_port_base)
+        self._service_ports[service_key] = port
+        instance = SomeIPServiceInstance(
+            service_id=service_id,
+            instance_id=instance_id,
+            major_version=major_version,
+            local_addr=self.local_ip,
+            port=port,
+        )
+        self._services[service_key] = instance
+        return instance
 
     @property
     def sd_protocol(self):
@@ -493,8 +597,9 @@ class SomeIPEndpoint:
             return
 
         self.logger.info("Stopping SomeIPEndpoint...")
-        for publisher in self._publishers.values():
-            publisher.stop()
+        for instance in self._services.values():
+            instance.stop()
+        self._services.clear()
         self._publishers.clear()
 
         if self._subscriber:
@@ -528,24 +633,22 @@ class SomeIPEndpoint:
     ) -> SomeIPPublisher:
         """Return the service publisher, creating and announcing it once."""
         service_key = (service_id, instance_id)
+        instance = self.get_or_create_service_instance(
+            service_id, instance_id, major_version
+        )
         publisher = self._publishers.get(service_key)
         if publisher is None:
-            port = self._service_ports.get(service_key)
-            if port is None:
-                port = _get_service_port(
-                    service_id, instance_id, self.publisher_port_base
-                )
-                self._service_ports[service_key] = port
             publisher = SomeIPPublisher(
                 service_id=service_id,
                 instance_id=instance_id,
                 major_version=major_version,
                 local_addr=self.local_ip,
-                port=port,
+                port=instance.port,
+                instance=instance,
             )
-            publisher.add_eventgroup(eventgroup_id, on_notification)
-            await publisher.start(self._sd_announcer)
             self._publishers[service_key] = publisher
+        publisher.add_eventgroup(eventgroup_id, on_notification)
+        await publisher.start(self._sd_announcer)
         return publisher
 
     async def subscribe(
@@ -602,6 +705,8 @@ class SomeIPEventBus(ManagedEventBus):
         local_ip: str = "127.0.0.1",
         publisher_port: int = 30490,
         is_publisher: bool = True,
+        *,
+        endpoint: Optional[SomeIPEndpoint] = None,
     ):
         self.mappings = mappings
         self.logger = logging.getLogger(__name__)
@@ -609,9 +714,10 @@ class SomeIPEventBus(ManagedEventBus):
         # Local subscriptions (topic -> list of handlers)
         self._subscriptions: Dict[str, List[Subscription]] = {}
 
-        # SD, transports, publishers and subscriber are shared with future
-        # method/field adapters through one endpoint.
-        self._endpoint = SomeIPEndpoint(
+        # SD, transports, publishers and subscriber can be shared with method
+        # and field adapters through one endpoint.
+        self._owns_endpoint = endpoint is None
+        self._endpoint = endpoint or SomeIPEndpoint(
             local_ip=local_ip,
             publisher_port=publisher_port,
             is_publisher=is_publisher,
@@ -658,19 +764,17 @@ class SomeIPEventBus(ManagedEventBus):
     async def start(self):
         """Initialize the shared SOME/IP endpoint (SD + transports)."""
         if self._endpoint.started:
-            self.logger.warning("SomeIPEventBus already started")
             return
         self.logger.info("Starting SomeIPEventBus ...")
         await self._endpoint.start()
         self.logger.info("SomeIPEventBus started successfully")
 
     async def stop(self):
-        """Shutdown the shared SOME/IP endpoint."""
-        if not self._endpoint.started:
-            return
-        self.logger.info("Stopping SomeIPEventBus...")
-        await self._endpoint.stop()
-        self.logger.info("SomeIPEventBus stopped")
+        """Shutdown the shared SOME/IP endpoint when this bus owns it."""
+        if self._owns_endpoint and self._endpoint.started:
+            self.logger.info("Stopping SomeIPEventBus...")
+            await self._endpoint.stop()
+            self.logger.info("SomeIPEventBus stopped")
 
     async def publish(self, message: EventMessage) -> None:
         """
@@ -705,6 +809,21 @@ class SomeIPEventBus(ManagedEventBus):
         self.logger.debug(
             f"Published to Service={mapping.service_id:#x}, "
             f"Instance={mapping.instance_id:#x}, Group={mapping.eventgroup_id:#x}"
+        )
+
+    async def register_topic(self, topic: str) -> None:
+        """Create and announce the publisher for a topic without publishing."""
+        mapping = self.mappings.get(topic)
+        if not mapping:
+            raise NotFoundError(f"No SOME/IP mapping for topic: {topic}")
+        if not self._started:
+            raise StateError("SomeIPEventBus is not started")
+        await self._endpoint.get_or_create_publisher(
+            service_id=mapping.service_id,
+            instance_id=mapping.instance_id,
+            major_version=mapping.major_version,
+            eventgroup_id=mapping.eventgroup_id,
+            on_notification=self._create_notification_handler(topic),
         )
 
     def subscribe(self, topic: str, handler: EventHandler) -> Subscription:

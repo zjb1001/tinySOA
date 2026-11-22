@@ -19,7 +19,7 @@ from tinysoa.api.service_api import MethodSelector, ServiceInvoker, ServiceSelec
 from tinysoa.core.errors import NotFoundError, StateError, ValidationError
 from tinysoa.core.model import Message, Method, Service
 
-from .someip import SomeIPEndpoint, SomeIPPublisher
+from .someip import SomeIPEndpoint, SomeIPServiceInstance
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +64,8 @@ class SomeIPServiceBinding:
         _check_range("minor_version", self.minor_version, 0, 0xFFFFFFFF)
         _check_range("local_port", self.local_port, 0, 0xFFFF)
         _check_range("server_port", self.server_port, 0, 0xFFFF)
-        if not isinstance(self.methods, Mapping) or not self.methods:
-            raise ValidationError(
-                "SomeIPServiceBinding.methods must be a non-empty mapping"
-            )
+        if not isinstance(self.methods, Mapping):
+            raise ValidationError("SomeIPServiceBinding.methods must be a mapping")
         if self.timeout <= 0:
             raise ValidationError("SomeIPServiceBinding.timeout must be positive")
         if self.discovery_timeout <= 0:
@@ -243,12 +241,14 @@ class SomeIPMethodInvoker(ServiceInvoker):
         local_ip: Optional[str] = None,
         local_port: Optional[int] = None,
         client_id: int = 1,
+        endpoint: Optional[SomeIPEndpoint] = None,
     ):
         self.binding = binding
         self.local_ip = binding.local_ip if local_ip is None else local_ip
         self.local_port = binding.local_port if local_port is None else local_port
         self.client_id = client_id
-        self._endpoint = SomeIPEndpoint(
+        self._owns_endpoint = endpoint is None
+        self._endpoint = endpoint or SomeIPEndpoint(
             local_ip=self.local_ip,
             publisher_port=0,
             is_publisher=False,
@@ -285,7 +285,8 @@ class SomeIPMethodInvoker(ServiceInvoker):
         if self._transport is not None:
             self._transport.close()
             self._transport = None
-        await self._endpoint.stop()
+        if self._owns_endpoint:
+            await self._endpoint.stop()
 
     async def invoke(
         self,
@@ -338,18 +339,28 @@ class SomeIPMethodDispatcher:
         *,
         local_ip: Optional[str] = None,
         server_port: Optional[int] = None,
+        endpoint: Optional[SomeIPEndpoint] = None,
     ):
         self.binding = binding
         self.local_ip = binding.local_ip if local_ip is None else local_ip
         self.server_port = binding.server_port if server_port is None else server_port
-        self._endpoint = SomeIPEndpoint(
+        self._owns_endpoint = endpoint is None
+        self._endpoint = endpoint or SomeIPEndpoint(
             local_ip=self.local_ip,
             publisher_port=self.server_port,
             is_publisher=True,
         )
-        self._publisher: Optional[SomeIPPublisher] = None
+        self._instance: Optional[SomeIPServiceInstance] = None
         self._handlers: Dict[str, MethodHandler] = {}
         self._started = False
+
+    @property
+    def has_handlers(self) -> bool:
+        return bool(self._handlers)
+
+    @property
+    def is_started(self) -> bool:
+        return self._started
 
     def register(self, name: str, handler: MethodHandler) -> None:
         """Register an async handler for a logical method name."""
@@ -358,8 +369,8 @@ class SomeIPMethodDispatcher:
         if name in self._handlers:
             raise ValidationError(f"method {name!r} already registered")
         self._handlers[name] = handler
-        if self._publisher is not None:
-            self._publisher.register_method(
+        if self._instance is not None:
+            self._instance.register_method(
                 self.binding.methods[name], self._make_adapter(name, handler)
             )
 
@@ -379,19 +390,18 @@ class SomeIPMethodDispatcher:
         if not self._handlers:
             raise StateError("No method handlers registered")
         await self._endpoint.start()
-        publisher = SomeIPPublisher(
+        instance = self._endpoint.get_or_create_service_instance(
             service_id=self.binding.service_id,
             instance_id=self.binding.instance_id,
             major_version=self.binding.major_version,
-            local_addr=self.local_ip,
             port=self.server_port,
         )
         for name, handler in self._handlers.items():
-            publisher.register_method(
+            instance.register_method(
                 self.binding.methods[name], self._make_adapter(name, handler)
             )
-        await publisher.start(self._endpoint.announcer)
-        self._publisher = publisher
+        await instance.start(self._endpoint.announcer)
+        self._instance = instance
         self._started = True
 
     async def stop(self) -> None:
@@ -399,10 +409,9 @@ class SomeIPMethodDispatcher:
         if not self._started:
             return
         self._started = False
-        if self._publisher is not None:
-            self._publisher.stop()
-            self._publisher = None
-        await self._endpoint.stop()
+        self._instance = None
+        if self._owns_endpoint:
+            await self._endpoint.stop()
 
     def _make_adapter(self, name: str, handler: MethodHandler) -> Callable:
         def adapter(msg: hdr.SOMEIPHeader, addr: hdr._T_SOCKNAME) -> None:
@@ -418,7 +427,7 @@ class SomeIPMethodDispatcher:
         msg: hdr.SOMEIPHeader,
         addr: hdr._T_SOCKNAME,
     ) -> None:
-        service = self._publisher.service if self._publisher else None
+        service = self._instance.service if self._instance else None
         if service is None:
             logger.error("SOME/IP service is not running")
             return

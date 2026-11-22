@@ -1,3 +1,4 @@
+from .broker import BrokerEventBus
 from .bus import (
     EventBus,
     EventBusBroker,
@@ -39,6 +40,7 @@ except ImportError:  # pragma: no cover — someip is vendored and always presen
 __all__ = [
     "EventBus",
     "EventBusBroker",
+    "BrokerEventBus",
     "ManagedEventBus",
     "MessageStream",
     "Topology",

@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from tinysoa.eventbus import (
+    BrokerEventBus,
     EventBus,
     EventBusBroker,
     InMemoryEventBus,
@@ -50,10 +51,15 @@ def test_broker_contract_is_start_stop() -> None:
 
 def test_implementations_declare_topology() -> None:
     assert InMemoryEventBus.topology is Topology.LOCAL
+    assert BrokerEventBus.topology is Topology.BROKER
     assert TCPEventBus.topology is Topology.BROKER
     assert TCPEventBusBroker.topology is Topology.BROKER
     assert SomeIPEventBus is not None
     assert SomeIPEventBus.topology is Topology.PEER
+
+
+def test_tcp_event_bus_is_a_broker_event_bus() -> None:
+    assert issubclass(TCPEventBus, BrokerEventBus)
 
 
 def test_message_stream_contract_is_transport_only() -> None:

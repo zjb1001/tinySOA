@@ -47,8 +47,9 @@ tinySOA 框架层
   ServiceRegistry / ServiceInvoker   (api/)   ← ABC 契约
   EventPublisher / EventSubscriber   (api/)
   EventBus (ABC) ──┬─ InMemoryEventBus      (LOCAL)
-                   ├─ TCPEventBus + TCPEventBusBroker (BROKER)
-                   │     └─ MessageStream / TCPMessageStream
+                   ├─ BrokerEventBus        (BROKER，通用 broker 客户端)
+                   │     ├─ TCPMessageStream / TCPEventBus
+                   │     └─ TCPEventBusBroker (broker 服务端)
                    └─ SomeIPEventBus        (PEER，基于 pysomeip)  ← 协议栈之一
   Container / LifecycleManager       (runtime/)
   Interceptor / InterceptorChain     (spi/)
@@ -62,7 +63,7 @@ SOME/IP 协议层（pysomeip）/ asyncio 传输（UDP/TCP）
 关键事实：
 - **ServiceStatus 状态机**：`INIT → REGISTERED → RUNNING → STOPPED → TERMINATED`，非法跳转抛 `StateError`（`core/model.py`）。
 - **EventBus ABC**（`eventbus/bus.py`）：`publish` / `subscribe` / `unsubscribe` / `get_subscribers_count` 四个抽象方法 —— 这是协议栈的接入缝。`ManagedEventBus` 补 `async start/stop`，`Topology` 声明 `LOCAL/BROKER/PEER`。
-- **TCP 的传输与总线分离**：`TCPEventBus` 只保留 broker 总线语义，`TCPMessageStream` 实现 `MessageStream` transport；`TCPEventBusBroker` 是中心 broker。
+- **TCP 的传输与总线分离**：`BrokerEventBus` 持有 broker 总线语义，`MessageStream` 抽象 transport；`TCPEventBus = BrokerEventBus + TCPMessageStream`，`TCPEventBusBroker` 是中心 broker。
 - **SOME/IP 是协议栈之一**：`SomeIPEventBus(EventBus)` 在 `eventbus/someip.py`，把 topic 映射到 SOME/IP eventgroup，复用 pysomeip 的 SD 与 SimpleService。
 - **测试/运行**：pytest + pytest-asyncio；`cd tinySOA && export PYTHONPATH=$PWD/src`；`uvx pytest -q tests`。
 

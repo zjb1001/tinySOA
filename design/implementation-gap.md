@@ -61,9 +61,10 @@
 | `EventBus` ABC | ✅ 4 抽象方法 + `topology` | — | — |
 | `ManagedEventBus` | ✅ `async start()/stop()` | — | — |
 | `EventBusBroker` ABC | ✅ `start()/stop()` | 目前只有 TCP 实现 | 后续 broker 拓扑（如 MQTT 客户端对接外部 broker）复用 |
+| `BrokerEventBus` | ✅ 通用 broker 客户端，注入 `MessageStream` | — | 新 transport 只需实现 `MessageStream` |
 | `InMemoryEventBus` | ✅ `topology=LOCAL` | — | — |
 | `SomeIPEventBus` | ✅ `topology=PEER` + SD/eventgroup 映射 | WSL2 loopback 偶发不稳定 | CI 环境（Linux clean loopback）验证 |
-| `TCPEventBus` + `TCPEventBusBroker` | ✅ `topology=BROKER`，客户端 asyncio 原生 | 设计中无 TCP 设计文档 | 新增 `design/10-tcp-protocol.md` |
+| `TCPEventBus` + `TCPEventBusBroker` | ✅ `topology=BROKER`，`TCPEventBus` 是 `BrokerEventBus + TCPMessageStream` 的薄适配器 | 设计中无 TCP 设计文档 | 新增 `design/10-tcp-protocol.md` |
 | `EventMessage` | ✅ | — | — |
 
 ### 2.4 拦截器 (spi/)

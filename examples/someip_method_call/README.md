@@ -17,12 +17,29 @@
 
 ```text
 someip_method_call/
-  _common.py    服务/方法/端口常量
-  server.py     SimpleService + REQUEST handler
-  client.py     SD 发现 + 3 次 RPC
+  _common.py    SomeIPServiceBinding：服务/方法/端口配置
+  server.py     SomeIPMethodDispatcher + async method handlers
+  client.py     SomeIPMethodInvoker + 3 次 RPC
   tmux.sh       左: Server / 右: Client
   Makefile      start/stop/status/logs/smoke/tmux
 ```
+
+应用代码只写逻辑方法名：
+
+```python
+# server
+dispatcher = SomeIPMethodDispatcher(binding(server_port=30950))
+
+@dispatcher.method("add")
+async def add(payload: dict) -> dict:
+    return {"result": payload["a"] + payload["b"]}
+
+# client
+invoker = SomeIPMethodInvoker(binding(local_port=30960))
+response = await invoker.invoke("calculator", "add", {"a": 10, "b": 7})
+```
+
+SD、REQUEST/RESPONSE、session 匹配、JSON 编解码、错误响应都由框架处理。
 
 ## 运行
 

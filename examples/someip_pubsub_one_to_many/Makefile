@@ -30,8 +30,8 @@ SUB_WANT      ?= 3
 SUB_TIMEOUT   ?= 40
 SUB1_PORT     ?= 30930
 SUB2_PORT     ?= 30940
-SMOKE_PUB_COUNT ?= 12
-SMOKE_WAIT      ?= 18
+SMOKE_PUB_COUNT ?= 20
+SMOKE_WAIT      ?= 26
 
 # ---- 产物路径 -----------------------------------------------------------
 PID_PUB  := $(SELF_DIR).pub.pid

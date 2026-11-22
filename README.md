@@ -93,7 +93,9 @@ service = Service(
 
 ### 第二步：选择事件总线
 
-tinySOA 提供三种事件总线，**换协议栈只需换一个实现**，上层代码不变：
+tinySOA 提供三种事件总线，**换协议栈只需换一个实现**，上层代码不变。
+配置驱动方式（`EventBusConfig` / `TopicBinding` / `create_event_bus`）见
+[docs/someip-service-architecture.md](docs/someip-service-architecture.md)：
 
 | 总线 | 拓扑 (`EventBus.topology`) | 适用场景 | 依赖 |
 |---|---|---|---|

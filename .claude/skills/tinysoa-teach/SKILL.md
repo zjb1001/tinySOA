@@ -60,7 +60,7 @@ description: tinySOA / SOA 教学助手 — 面向初学者的轻量服务架构
   - 策略：[policies/retry.py](tinySOA/src/tinysoa/policies/retry.py)、[policies/timeout.py](tinySOA/src/tinysoa/policies/timeout.py)、[policies/circuit_breaker.py](tinySOA/src/tinysoa/policies/circuit_breaker.py)
   - 可观测性：[obs/metrics.py](tinySOA/src/tinysoa/obs/metrics.py)、[obs/tracing.py](tinySOA/src/tinysoa/obs/tracing.py)
   - 配置：[config/loader.py](tinySOA/src/tinysoa/config/loader.py)、[config/schema.py](tinySOA/src/tinysoa/config/schema.py)
-  - 示例：[examples/echo_service/](tinySOA/examples/echo_service/)、[examples/pubsub_multi/](tinySOA/examples/pubsub_multi/)、[examples/someip_multi_publishers/](tinySOA/examples/someip_multi_publishers/)
+  - 示例：[examples/local_echo_service/](tinySOA/examples/local_echo_service/)、[examples/tcp_pubsub_one_to_many/](tinySOA/examples/tcp_pubsub_one_to_many/)、[examples/someip_pubsub_multi_sensor/](tinySOA/examples/someip_pubsub_multi_sensor/)
   - 设计文档：[design/](design/)（00-09）
   - 计划：[tinySOA/optimise.md](tinySOA/optimise.md)
 - 当调用路径或控制流重要时，使用本仓库文件追踪实际的执行路径。
@@ -83,8 +83,8 @@ mypy --show-error-codes src/         # 如已安装
 ruff check src/ tests/ examples/     # 如已安装
 
 # === 跑示例 ===
-PYTHONPATH=$PWD/src python examples/echo_service/app.py --help
-PYTHONPATH=$PWD/src python examples/pubsub_multi/server.py --host 127.0.0.1 --port 8765
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.local_echo_service.app --help
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.server --host 127.0.0.1 --port 8765
 
 # === SOME/IP 协议栈依赖（仅当用到 SomeIPEventBus） ===
 pip install -e .      # 在仓库根安装 pysomeip，使 import someip 可用
@@ -131,7 +131,7 @@ SOME/IP 协议层（pysomeip）/ asyncio 传输（UDP/TCP）
 ### API 与最小示例
 ```bash
 cd tinySOA && export PYTHONPATH=$PWD/src
-PYTHONPATH=$PWD/src python examples/echo_service/app.py --help
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.local_echo_service.app --help
 ```
 
 ### 常见陷阱
@@ -432,8 +432,8 @@ SOME/IP 是 tinySOA 的**生产级协议栈**，也是 `someip`（pysomeip）真
 pip install -e .
 # 跑 SOME/IP 多发布者示例
 cd tinySOA && export PYTHONPATH=$PWD/src
-python examples/someip_multi_publishers/publisher1_temperature.py ...
-python examples/someip_multi_publishers/subscriber_aggregator.py ...
+python -m examples.someip_pubsub_multi_sensor.publisher1_temperature ...
+python -m examples.someip_pubsub_multi_sensor.subscriber_aggregator ...
 ```
 
 ### 常见陷阱

@@ -18,7 +18,7 @@ git submodule update --init --recursive
 uv venv .venv && source .venv/bin/activate && uv pip install pytest pytest-asyncio
 
 # 4) 跑 echo demo 验证环境
-PYTHONPATH=src python examples/echo_service/app.py
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.local_echo_service.app
 
 # 5) 跑测试套件
 .venv/bin/python -m pytest tests/unit -q          # 单元测试 (72 个, <1s)
@@ -32,7 +32,7 @@ PYTHONPATH=src python examples/echo_service/app.py
 ## 目录结构
 - `src/tinysoa/`：核心源码（core/runtime/api/spi/policies/eventbus/obs 等）
 - `tests/`：测试用例
-- `examples/`：示例（echo 服务、一发多收、多发一收）
+- `examples/`：9 个渐进案例，按 `local_*` / `tcp_*` / `someip_*` 命名（见 [examples/README.md](examples/README.md)）
 - `third_party/`：第三方依赖（以 git submodule 形式引入）
   - `third_party/pysomeip/`：[pysomeip](https://github.com/afflux/pysomeip)，SOME/IP 协议栈（提供 `someip` 包），供 `src/tinysoa/eventbus/someip.py` 使用
 
@@ -70,7 +70,7 @@ export PYTHONPATH=$PWD/src:$PWD/third_party/pysomeip/src
 
 ## 构建你自己的 SOA 应用
 
-这一节从零开始，用 tinySOA 搭建一个完整的服务。完整可运行代码见 `examples/echo_service/app.py`。
+这一节从零开始，用 tinySOA 搭建一个完整的服务。完整可运行代码见 `examples/local_echo_service/app.py`。
 
 ### 第一步：定义服务
 
@@ -98,7 +98,7 @@ tinySOA 提供三种事件总线，**换协议栈只需换一个实现**，上�
 | 总线 | 拓扑 (`EventBus.topology`) | 适用场景 | 依赖 |
 |---|---|---|---|
 | `InMemoryEventBus` | `LOCAL` | 单进程、开发调试、单元测试 | 无 |
-| `TCPEventBus` + `TCPEventBusBroker` | `BROKER` | 多进程、跨机器（中心 broker） | 无 |
+| `BrokerEventBus`（`TCPEventBus` = + `TCPMessageStream`） + `TCPEventBusBroker` | `BROKER` | 多进程、跨机器（中心 broker） | 无 |
 | `SomeIPEventBus` | `PEER` | 车载/嵌入式 SOME/IP 协议（SD 发现，无中心） | pysomeip（`third_party/`） |
 
 以最简的 `InMemoryEventBus` 为例：
@@ -187,10 +187,10 @@ lifecycle.terminate_service(service.id) # → TERMINATED
 
 ### 完整可运行示例
 
-把以上五步串起来就是 `examples/echo_service/app.py`——一个自包含的 echo 服务，跑通了 Service → EventBus → InterceptorChain → Retry/CircuitBreaker/Timeout → 事件投递的完整链路：
+把以上五步串起来就是 `examples/local_echo_service/app.py`——一个自包含的 echo 服务，跑通了 Service → EventBus → InterceptorChain → Retry/CircuitBreaker/Timeout → 事件投递的完整链路：
 
 ```bash
-PYTHONPATH=src python examples/echo_service/app.py
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.local_echo_service.app
 ```
 
 ```text
@@ -203,29 +203,29 @@ PYTHONPATH=src python examples/echo_service/app.py
 
 ### 下一步
 
-- 看 `examples/interceptor_auth/app.py` 了解如何写**自定义拦截器**（认证 + 优先级排序 + 短路）
-- 看 `examples/pubsub_multi/` 了解 **TCPEventBus 多进程发布/订阅**
-- 看 `examples/cross_process_someip/` 了解 **SOME/IP 跨进程通信**
+- 看 `examples/local_interceptor_auth/app.py` 了解如何写**自定义拦截器**（认证 + 优先级排序 + 短路）
+- 看 `examples/tcp_pubsub_one_to_many/` 了解 **TCPEventBus 多进程发布/订阅**
+- 看 `examples/someip_cross_process/` 了解 **SOME/IP 跨进程通信**
 - 看 `design/` 目录了解架构设计细节
 
 ## 快速开始
 - Echo 服务示例：
 ```bash
-PYTHONPATH=src python examples/echo_service/app.py --help
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.local_echo_service.app --help
 ```
 - Pub/Sub：一发布者，多订阅者：
 ```bash
-PYTHONPATH=src python examples/pubsub_multi/server.py --host 127.0.0.1 --port 8765
-PYTHONPATH=src python examples/pubsub_multi/subscriber.py sub-1 --topic demo.topic --host 127.0.0.1 --port 8765
-PYTHONPATH=src python examples/pubsub_multi/subscriber.py sub-2 --topic demo.topic --host 127.0.0.1 --port 8765
-PYTHONPATH=src python examples/pubsub_multi/publisher.py --topic demo.topic --count 5 --interval 1.0 --host 127.0.0.1 --port 8765
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.server --host 127.0.0.1 --port 8765
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.subscriber sub-1 --topic demo.topic --host 127.0.0.1 --port 8765
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.subscriber sub-2 --topic demo.topic --host 127.0.0.1 --port 8765
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.publisher --topic demo.topic --count 5 --interval 1.0 --host 127.0.0.1 --port 8765
 ```
 - Pub/Sub：多发布者，一订阅者：
 ```bash
-PYTHONPATH=src python examples/pubsub_multi/server.py --host 127.0.0.1 --port 8767
-PYTHONPATH=src python examples/pubsub_multi/subscriber.py collector --topic demo.topic --host 127.0.0.1 --port 8767
-PYTHONPATH=src python examples/multi_publishers_single_sub/publisher_with_id.py pub-A --topic demo.topic --count 5 --interval 0.5 --host 127.0.0.1 --port 8767
-PYTHONPATH=src python examples/multi_publishers_single_sub/publisher_with_id.py pub-B --topic demo.topic --count 5 --interval 0.7 --host 127.0.0.1 --port 8767
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.server --host 127.0.0.1 --port 8766
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.subscriber collector --topic demo.topic --host 127.0.0.1 --port 8766
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_many_to_one.publisher_with_id pub-A --topic demo.topic --count 5 --interval 0.5 --host 127.0.0.1 --port 8766
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_many_to_one.publisher_with_id pub-B --topic demo.topic --count 5 --interval 0.7 --host 127.0.0.1 --port 8766
 ```
 
 ## 主要能力

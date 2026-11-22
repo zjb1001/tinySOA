@@ -270,7 +270,7 @@ pytest -q tests
 ruff check src/ tests/ examples/ 2>/dev/null || true
 mypy --show-error-codes src/ 2>/dev/null || true
 # example still runs:
-PYTHONPATH=$PWD/src python examples/echo_service/app.py --help
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.local_echo_service.app --help
 ```
 
 ### Summary Report

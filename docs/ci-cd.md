@@ -57,7 +57,7 @@ python -m pip install -r requirements-dev.txt
 `make smoke` 只跑稳定、可重复的子集：
 
 ```bash
-make -C examples smoke-vdp smoke-calc smoke-pubsub smoke-multipub
+make -C examples smoke-vdp smoke-calc smoke-pubsub smoke-pubsub-many
 ```
 
 SOME/IP 事件冒烟（`smoke-echo-someip`、`smoke-someip`）默认参数存在订阅延迟竞态，

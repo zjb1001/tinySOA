@@ -27,7 +27,7 @@ You are a tinySOA debugging specialist. You follow a strict root-cause-first met
 | Interceptor not firing / wrong order | inspect `InterceptorChain` order, `priority` | `spi/interceptor.py` |
 | Policy misbehaviour | retry exhausting, breaker stuck open | `policies/retry.py`, `policies/circuit_breaker.py`, `policies/timeout.py` |
 | Config wrong | check merge precedence | `config/loader.py`, `config/schema.py` |
-| SomeIP stack silent (no offer/notify) | `python examples/someip_multi_publishers/...`, `tcpdump -i lo 'udp port 30490'` | `eventbus/someip.py` |
+| SomeIP stack silent (no offer/notify) | `python -m examples.someip_pubsub_multi_sensor.publisher1_temperature ...`, `tcpdump -i lo 'udp port 30490'` | `eventbus/someip.py` |
 | Async hang / deadlock | `asyncio.all_tasks()`, missing `wait_for` | async modules |
 | Resource leak (transport/task) | teardown warnings, task tracking | `eventbus/*.py`, `runtime/` |
 | Runtime crash / exception | full traceback | suspected module |
@@ -88,7 +88,7 @@ asyncio.run(main(), debug=True)
 "
 
 # === SomeIP stack on loopback (only if bug is in someip.py) ===
-python examples/someip_multi_publishers/publisher1_temperature.py ...
+python -m examples.someip_pubsub_multi_sensor.publisher1_temperature ...
 sudo tcpdump -i lo 'udp port 30490' -nn -vv
 ```
 
@@ -220,7 +220,7 @@ mypy --show-error-codes src/ 2>/dev/null || true
 # repro from Phase 1 now passing:
 PYTHONPATH=$PWD/src python -c "..."
 # example still runs:
-PYTHONPATH=$PWD/src python examples/echo_service/app.py --help
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.local_echo_service.app --help
 ```
 
 ### Spawn Two Parallel Sub-Agents for Verification

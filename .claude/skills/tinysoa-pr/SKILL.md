@@ -175,7 +175,7 @@ For each fix:
 
 ```bash
 # Examples still importable/runnable
-cd tinySOA && PYTHONPATH=$PWD/src python examples/echo_service/app.py --help
+cd tinySOA && PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.local_echo_service.app --help
 # If design docs (design/*.md) referenced, check consistency with code
 ```
 

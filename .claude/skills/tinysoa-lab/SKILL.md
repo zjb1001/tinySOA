@@ -25,7 +25,7 @@ description: tinySOA 动手实验指导 — 把 SOA 概念转成可执行的练�
 
 | Lab | 主题 | 难度 | 核心文件 |
 |-----|------|------|----------|
-| 1 | Hello tinySOA — 环境与首次运行 | 入门 | `README.md`, `examples/echo_service/`, `examples/pubsub_multi/` |
+| 1 | Hello tinySOA — 环境与首次运行 | 入门 | `README.md`, `examples/local_echo_service/`, `examples/tcp_pubsub_one_to_many/` |
 | 2 | 核心模型与 ServiceStatus FSM | 入门 | `core/model.py`, `core/errors.py`, `tests/test_core_model.py` |
 | 3 | API 契约层 — 契约测试 | 基础 | `api/service_api.py`, `api/event_api.py` |
 | 4 | 事件总线与三种实现 | 基础 | `eventbus/bus.py`, `eventbus/tcp.py`, `eventbus/message.py` |
@@ -34,7 +34,7 @@ description: tinySOA 动手实验指导 — 把 SOA 概念转成可执行的练�
 | 7 | 弹性策略 | 进阶 | `policies/retry.py`, `policies/circuit_breaker.py` |
 | 8 | 可观测性 | 进阶 | `obs/metrics.py`, `obs/tracing.py` |
 | 9 | 配置管理 | 中阶 | `config/loader.py`, `config/schema.py` |
-| 10 | SOME/IP 协议栈集成 | 高阶 | `eventbus/someip.py`, `examples/someip_multi_publishers/` |
+| 10 | SOME/IP 协议栈集成 | 高阶 | `eventbus/someip.py`, `examples/someip_pubsub_multi_sensor/` |
 
 ## Lab Workflow
 
@@ -59,10 +59,10 @@ PYTHONPATH=$PWD/src pytest tests/test_<area>.py -q # 单文件
 ### 示例
 
 ```bash
-PYTHONPATH=$PWD/src python examples/echo_service/app.py --help
-PYTHONPATH=$PWD/src python examples/pubsub_multi/server.py --host 127.0.0.1 --port 8765
-PYTHONPATH=$PWD/src python examples/pubsub_multi/subscriber.py sub-1 --topic demo.topic --host 127.0.0.1 --port 8765
-PYTHONPATH=$PWD/src python examples/pubsub_multi/publisher.py --topic demo.topic --count 5 --interval 1.0 --host 127.0.0.1 --port 8765
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.local_echo_service.app --help
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.server --host 127.0.0.1 --port 8765
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.subscriber sub-1 --topic demo.topic --host 127.0.0.1 --port 8765
+PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.publisher --topic demo.topic --count 5 --interval 1.0 --host 127.0.0.1 --port 8765
 ```
 
 ### SOME/IP 协议栈依赖（仅 Lab 10 / 用到 SomeIPEventBus 时）
@@ -101,7 +101,7 @@ sudo tcpdump -i lo 'udp port 30490' -nn -vv   # 确认 loopback multicast
 
 #### 分步实现
 1. **环境**：`cd tinySOA && export PYTHONPATH=$PWD/src`，`python -c "import tinysoa.core.model, tinysoa.eventbus.bus"`。
-2. **echo 服务**：`PYTHONPATH=$PWD/src python examples/echo_service/app.py --help`。
+2. **echo 服务**：`PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.local_echo_service.app --help`。
 3. **pubsub**：起 server + 两个 subscriber + 一个 publisher（见 README 命令）。
 4. **观察**：subscriber 收到 publisher 的消息；理解走的是 TCPEventBus（演示用）。
 
@@ -180,7 +180,7 @@ sudo tcpdump -i lo 'udp port 30490' -nn -vv   # 确认 loopback multicast
 #### 分步实现
 1. **InMemory 探针**：`python -c` 跑 publish→subscribe→收到→unsubscribe。
 2. **匹配**：用通配/多模式订阅，验证 publish 命中正确订阅者。
-3. **切换 TCP**：用 examples/pubsub_multi 的 server/client，确认同样的 topic 语义在 TCP 上成立。
+3. **切换 TCP**：用 examples/tcp_pubsub_one_to_many 的 server/client，确认同样的 topic 语义在 TCP 上成立。
 
 #### 验证标准
 - InMemory 与 TCP 行为语义一致（topic 匹配、投递、取消订阅）。
@@ -301,7 +301,7 @@ sudo tcpdump -i lo 'udp port 30490' -nn -vv   # 确认 loopback multicast
 
 ### Lab 10: SOME/IP 协议栈集成
 
-**难度**: 高阶 | **前置**: Lab 4 + 仓库根 `pip install -e .` | **核心文件**: `eventbus/someip.py`, `examples/someip_multi_publishers/`
+**难度**: 高阶 | **前置**: Lab 4 + 仓库根 `pip install -e .` | **核心文件**: `eventbus/someip.py`, `examples/someip_pubsub_multi_sensor/`
 
 #### 实验目标
 1. 理解 `SomeIPEventBus` 如何实现 `EventBus` ABC、如何把 topic 映射到 SOME/IP eventgroup。

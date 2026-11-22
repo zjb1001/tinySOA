@@ -29,8 +29,8 @@ tests/
 | `obs/` | unit | test_observability |
 | `config/` | unit | test_config_merge, test_config_system |
 | `eventbus/` (InMemory+TCP) | integration | test_event_bus |
-| `eventbus/` (SomeIP) | integration | test_someip_bus, test_service_discovery_proto, test_cross_process_someip |
-| examples (all 6) | examples | test_example_echo, _interceptor_auth, _pubsub_multi, _multi_publishers, _someip_multi |
+| `eventbus/` (SomeIP) | integration | test_someip_bus, test_service_discovery_proto, test_someip_cross_process |
+| examples (all 9) | examples | test_example_local_echo_service, _local_interceptor_auth, _tcp_pubsub_one_to_many, _tcp_pubsub_many_to_one, _someip_pubsub_multi_sensor |
 | system | system/ST-* | standalone scripts (not pytest) |
 
 **Resolved tech debt**:
@@ -144,8 +144,8 @@ def example_pythonpath() -> dict[str, str]:
 
 @pytest.fixture(scope="session")
 def someip_example_dir() -> str:
-    """Return the absolute path of ``examples/someip_multi_publishers``."""
-    return str(_CLAUDE_ROOT / "examples" / "someip_multi_publishers")
+    """Return the absolute path of ``examples/someip_pubsub_multi_sensor``."""
+    return str(_CLAUDE_ROOT / "examples" / "someip_pubsub_multi_sensor")
 ```
 
 ## 5. Contract-Test Parametrization
@@ -220,7 +220,7 @@ def skip_if_sd_contended():
 
 | Test | Reason | Needs |
 |---|---|---|
-| `test_cross_process_someip` | pysomeip SD delivery race on WSL2 | clean Linux loopback |
+| `test_someip_cross_process` | pysomeip SD delivery race on WSL2 | clean Linux loopback |
 | `test_loopback_pubsub` | Port contention in full-suite ordering | exclusive port + sequential run |
 | `test_someip_sensor_delivery` | SD delivery race (same as above) | clean Linux loopback |
 
@@ -228,7 +228,7 @@ On Linux with clean loopback, all three skip-gates should pass.
 
 ## 7. Stub Cleanup
 
-`tests/test_someip_bus_extended.py` (105 lines, 0 tests collected):
+`tests/integration/test_someip_bus_extended.py` (105 lines, 0 tests collected):
 
 ```
 @pytest.mark.skip(reason="Design-only scope: test implementation deferred")

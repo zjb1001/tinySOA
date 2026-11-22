@@ -31,12 +31,22 @@ make -C examples smoke-all
 | `local_vehicle_platform` | LOCAL | 单进程 | `local_vehicle_platform.app` | Container 依赖/生命周期/健康检查 |
 | `local_pubsub_topologies` | LOCAL | 单进程 | `local_pubsub_topologies.app` | 1v1 / 1vN / Nv1 应用 API 观察 |
 | `tcp_pubsub_one_to_many` | BROKER | broker + pub + N sub | `tcp_pubsub_one_to_many.{server,publisher,subscriber}` | TCP 中心 broker 扇出 |
-| `tcp_pubsub_many_to_one` | BROKER | broker + sub + N pub | `tcp_pubsub_many_to_one.publisher_with_id` | 多来源聚合、publisher_id |
-| `someip_pubsub_echo` | PEER | pub + sub | `someip_pubsub_echo.{publisher,subscriber}` | 1v1：SD Offer/FindSubscribe |
-| `someip_pubsub_one_to_many` | PEER | 1 pub + N sub | `someip_pubsub_one_to_many.{publisher,subscriber}` | 1vN：同一服务多订阅者 |
+| `someip_pubsub_one_to_many` | PEER | 1 pub + N sub | `someip_pubsub_one_to_many.{publisher,subscriber}` | 1vN：`SomeIPService` 门面、同一服务多订阅者 |
 | `someip_pubsub_multi_sensor` | PEER | 3 pub + agg | `someip_pubsub_multi_sensor.*` | Nv1：多服务发现、聚合仪表盘 |
-| `someip_method_call` | PEER | server + client | `someip_method_call.{server,client}` | SOME/IP RPC |
-| `someip_cross_process` | PEER | orchestrator + 2 进程 | `someip_cross_process.run_cross_process` | 真实跨进程事件投递 |
+| `someip_method_call` | PEER | server + client | `someip_method_call.{server,client}` | SOME/IP RPC（`SomeIPService` 门面） |
+
+应用层推荐使用门面：
+
+```python
+publisher = bus.publisher("demo.topic")
+subscriber = bus.subscriber("demo.topic")
+
+# 或 SOME/IP
+service = SomeIPService(binding, event_mappings=EVENT_MAPPINGS)
+publisher = service.publisher("demo.topic")
+```
+
+低层 `bus.publish(EventMessage(...))` 保留给框架内部、测试和高级用法。
 
 ## 常用命令
 
@@ -50,15 +60,12 @@ make -C examples topologies SCENARIO=1vn SUBSCRIBERS=5
 
 # TCP broker
 make -C examples tmux-pubsub
-make -C examples tmux-pubsub-many
 make -C examples smoke-pubsub
-make -C examples smoke-pubsub-many
 
 # SOME/IP
-make -C examples tmux-echo-someip
 make -C examples tmux-someip-one-to-many
+make -C examples smoke-someip-one-to-many
 make -C examples tmux-someip
-make -C examples tmux-xprocess
 make -C examples smoke-calc
 
 # 全局

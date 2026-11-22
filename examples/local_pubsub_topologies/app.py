@@ -46,11 +46,13 @@ async def run_one_to_one(count: int = 3) -> ScenarioResult:
         nonlocal received
         received += 1
 
-    bus.subscribe(TOPIC, on_event)
+    publisher = bus.publisher(TOPIC)
+    subscriber = bus.subscriber(TOPIC)
+    subscriber.on(on_event)
     try:
+        await publisher.register()
         for i in range(count):
-            message = EventMessage(topic=TOPIC, payload={"from": "pub-1", "seq": i})
-            await bus.publish(message)
+            await publisher.publish({"from": "pub-1", "seq": i})
     finally:
         await bus.stop()
     return ScenarioResult("1v1", count, {"sub-1": received})
@@ -66,12 +68,13 @@ async def run_one_to_many(subscribers: int = 3, count: int = 5) -> ScenarioResul
         async def on_event(_message: EventMessage, name: str = subscriber_id) -> None:
             delivered[name] += 1
 
-        bus.subscribe(TOPIC, on_event)
+        bus.subscriber(TOPIC).on(on_event)
 
+    publisher = bus.publisher(TOPIC)
     try:
+        await publisher.register()
         for i in range(count):
-            message = EventMessage(topic=TOPIC, payload={"from": "pub-1", "seq": i})
-            await bus.publish(message)
+            await publisher.publish({"from": "pub-1", "seq": i})
     finally:
         await bus.stop()
     return ScenarioResult("1vN", count, delivered)
@@ -85,13 +88,16 @@ async def run_many_to_one(publishers: int = 3, count: int = 5) -> ScenarioResult
     async def on_event(message: EventMessage) -> None:
         received.append(message.payload)
 
-    bus.subscribe(TOPIC, on_event)
+    bus.subscriber(TOPIC).on(on_event)
+    publishers_list = [bus.publisher(TOPIC) for _ in range(publishers)]
     total = publishers * count
     try:
+        for publisher in publishers_list:
+            await publisher.register()
         for seq in range(count):
-            for publisher in range(1, publishers + 1):
-                payload = {"from": f"pub-{publisher}", "seq": seq}
-                await bus.publish(EventMessage(topic=TOPIC, payload=payload))
+            for index, publisher in enumerate(publishers_list, start=1):
+                payload = {"from": f"pub-{index}", "seq": seq}
+                await publisher.publish(payload)
     finally:
         await bus.stop()
 

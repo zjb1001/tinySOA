@@ -15,7 +15,7 @@ import signal
 import sys
 from typing import Optional, Sequence
 
-from tinysoa.eventbus import SomeIPMethodDispatcher
+from tinysoa.eventbus import SomeIPService
 
 from ._common import LOCAL_IP, SERVER_PORT, SERVICE_ID, binding
 
@@ -48,24 +48,25 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
         datefmt="%H:%M:%S",
     )
 
-    dispatcher = SomeIPMethodDispatcher(
+    service = SomeIPService(
         binding(server_port=args.port),
         local_ip=args.host,
+        is_publisher=True,
     )
 
-    @dispatcher.method("add")
+    @service.method("add")
     async def add(payload: dict) -> dict:
         return {"result": float(payload["a"]) + float(payload["b"])}
 
-    @dispatcher.method("subtract")
+    @service.method("subtract")
     async def subtract(payload: dict) -> dict:
         return {"result": float(payload["a"]) - float(payload["b"])}
 
-    @dispatcher.method("multiply")
+    @service.method("multiply")
     async def multiply(payload: dict) -> dict:
         return {"result": float(payload["a"]) * float(payload["b"])}
 
-    await dispatcher.start()
+    await service.start()
     logger.info(
         "Calculator Server started — service_id=0x%04x on %s:%d",
         SERVICE_ID,
@@ -81,7 +82,7 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         await stop_event.wait()
     finally:
-        await dispatcher.stop()
+        await service.stop()
         logger.info("Calculator Server stopped")
     return 0
 

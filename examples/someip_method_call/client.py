@@ -15,9 +15,9 @@ import sys
 import time
 from typing import Optional, Sequence
 
-from tinysoa.eventbus import SomeIPMethodInvoker
+from tinysoa.eventbus import SomeIPService
 
-from ._common import CLIENT_PORT, LOCAL_IP, SERVICE_NAME, binding
+from ._common import CLIENT_PORT, LOCAL_IP, binding
 
 logger = logging.getLogger("calc.client")
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
@@ -54,24 +54,27 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
         datefmt="%H:%M:%S",
     )
 
-    invoker = SomeIPMethodInvoker(
+    service = SomeIPService(
         binding(local_port=args.port, timeout=5.0),
         local_ip=args.host,
+        is_publisher=False,
     )
     try:
-        await invoker.start()
+        await service.start()
     except Exception as exc:
-        logger.error("cannot start SOME/IP invoker: %s", exc)
+        logger.error("cannot start SOME/IP service: %s", exc)
         return 1
 
-    logger.info("Calculator Client started — looking for service %r", SERVICE_NAME)
+    logger.info(
+        "Calculator Client started — looking for service %r", service.binding.name
+    )
     passed = 0
     failed = 0
     try:
         for method_name, operands, expected in TEST_CASES:
             started = time.monotonic()
             try:
-                response = await invoker.invoke(SERVICE_NAME, method_name, operands)
+                response = await service.invoke(method_name, operands)
                 elapsed = time.monotonic() - started
                 actual = response.payload["result"]
                 ok = abs(actual - expected) < 0.001
@@ -95,7 +98,7 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
                 failed += 1
                 logger.error("ERROR  %s(%s) — %s", method_name, operands, exc)
     finally:
-        await invoker.stop()
+        await service.stop()
 
     logger.info(
         "Results: %d passed, %d failed, %d total",

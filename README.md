@@ -207,7 +207,7 @@ PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.local_echo_service.
 
 - 看 `examples/local_interceptor_auth/app.py` 了解如何写**自定义拦截器**（认证 + 优先级排序 + 短路）
 - 看 `examples/tcp_pubsub_one_to_many/` 了解 **TCPEventBus 多进程发布/订阅**
-- 看 `examples/someip_cross_process/` 了解 **SOME/IP 跨进程通信**
+- 看 `examples/someip_pubsub_one_to_many/` 了解 **SOME/IP 跨进程发布/订阅**
 - 看 `design/` 目录了解架构设计细节
 
 ## 快速开始
@@ -222,12 +222,9 @@ PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_m
 PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.subscriber sub-2 --topic demo.topic --host 127.0.0.1 --port 8765
 PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.publisher --topic demo.topic --count 5 --interval 1.0 --host 127.0.0.1 --port 8765
 ```
-- Pub/Sub：多发布者，一订阅者：
+- 1v1 / 1vN / Nv1 本地拓扑矩阵：
 ```bash
-PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.server --host 127.0.0.1 --port 8766
-PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_one_to_many.subscriber collector --topic demo.topic --host 127.0.0.1 --port 8766
-PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_many_to_one.publisher_with_id pub-A --topic demo.topic --count 5 --interval 0.5 --host 127.0.0.1 --port 8766
-PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.tcp_pubsub_many_to_one.publisher_with_id pub-B --topic demo.topic --count 5 --interval 0.7 --host 127.0.0.1 --port 8766
+make -C examples topologies
 ```
 
 ## 主要能力

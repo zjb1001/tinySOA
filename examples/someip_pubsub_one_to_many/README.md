@@ -14,8 +14,20 @@ someip_pubsub_one_to_many/
   Makefile        start/stop/status/logs/smoke/tmux
 ```
 
-应用侧只使用 `TOPIC`；SOME/IP 身份由 `publisher_config()` /
-`subscriber_config()` 提供。
+应用侧通过 `SomeIPService` 门面使用，只写 `TOPIC`：
+
+```python
+service = SomeIPService(
+    service_binding(server_port=PUBLISHER_PORT),
+    event_mappings=EVENT_MAPPINGS,
+    is_publisher=True,
+)
+publisher = service.publisher(TOPIC)
+await service.start()
+await publisher.publish({"value": 21.5})
+```
+
+SOME/IP ID 在 `_common.py` 的 `MAPPING` / `service_binding()` 中。
 
 ## 运行
 

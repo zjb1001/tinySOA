@@ -7,10 +7,15 @@ import asyncio
 import logging
 from datetime import datetime
 
-from tinysoa.config import create_event_bus
-from tinysoa.eventbus import EventMessage
+from tinysoa.eventbus import SomeIPService
 
-from ._common import SERVICE_ID, TOPIC, publisher_config
+from ._common import (
+    EVENT_MAPPINGS,
+    PUBLISHER_PORT,
+    SERVICE_ID,
+    TOPIC,
+    service_binding,
+)
 
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 logger = logging.getLogger("someip.one_to_many.publisher")
@@ -46,7 +51,12 @@ async def main(argv=None) -> int:
         logger.error("--count must be positive")
         return 2
 
-    bus = create_event_bus(publisher_config())
+    service = SomeIPService(
+        service_binding(server_port=PUBLISHER_PORT),
+        event_mappings=EVENT_MAPPINGS,
+        is_publisher=True,
+    )
+    publisher = service.publisher(TOPIC)
     logger.info(
         "starting service=0x%04x topic=%s count=%d interval=%.1fs",
         SERVICE_ID,
@@ -54,7 +64,7 @@ async def main(argv=None) -> int:
         args.count,
         args.interval,
     )
-    await bus.start()
+    await service.start()
     logger.info("SD Offer started; waiting for subscribers")
     try:
         await asyncio.sleep(2.0)
@@ -64,13 +74,13 @@ async def main(argv=None) -> int:
                 "msg": f"hello-{seq}",
                 "ts": datetime.now().isoformat(),
             }
-            await bus.publish(EventMessage(topic=TOPIC, payload=payload))
+            await publisher.publish(payload)
             logger.info("published seq=%d", seq)
             if seq < args.count - 1:
                 await asyncio.sleep(args.interval)
         await asyncio.sleep(1.0)
     finally:
-        await bus.stop()
+        await service.stop()
         logger.info("stopped after %d messages", args.count)
     return 0
 

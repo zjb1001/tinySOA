@@ -1,10 +1,10 @@
 """SOME/IP one-to-many — shared configuration.
 
-Application code only knows ``TOPIC``.  The SOME/IP service/eventgroup IDs and
-local endpoint options live here and are consumed by ``create_event_bus``.
+Application code only knows ``TOPIC``.  SOME/IP IDs live here and are consumed
+by the ``SomeIPService`` facade.
 """
 
-from tinysoa.config import EventBusConfig, EventBusKind, TopicBinding
+from tinysoa.eventbus import SomeIPServiceBinding, SomeIPTopicMapping
 
 TOPIC = "demo.one_to_many"
 
@@ -22,37 +22,30 @@ PUBLISHER_PORT = 30920
 SUBSCRIBER_PORT_BASE = 30930
 SUBSCRIBER_PORT_STEP = 10
 
+MAPPING = SomeIPTopicMapping(
+    service_id=SERVICE_ID,
+    instance_id=INSTANCE_ID,
+    eventgroup_id=EVENTGROUP_ID,
+    major_version=MAJOR_VERSION,
+)
+EVENT_MAPPINGS = {TOPIC: MAPPING}
 
-def _config(*, is_publisher: bool, local_port: int) -> EventBusConfig:
-    return EventBusConfig(
-        kind=EventBusKind.SOMEIP,
-        service="demo_one_to_many",
-        bindings=(
-            TopicBinding(
-                TOPIC,
-                {
-                    "service_id": SERVICE_ID,
-                    "instance_id": INSTANCE_ID,
-                    "eventgroup_id": EVENTGROUP_ID,
-                    "major_version": MAJOR_VERSION,
-                },
-            ),
-        ),
-        options={
-            "local_ip": LOCAL_IP,
-            "publisher_port": local_port,
-            "is_publisher": is_publisher,
-        },
+
+def service_binding(
+    *,
+    local_port: int = 0,
+    server_port: int = 0,
+    timeout: float = 5.0,
+) -> SomeIPServiceBinding:
+    """Build the shared service binding (event-only, no methods)."""
+    return SomeIPServiceBinding(
+        name="demo_one_to_many",
+        service_id=SERVICE_ID,
+        instance_id=INSTANCE_ID,
+        methods={},
+        major_version=MAJOR_VERSION,
+        local_ip=LOCAL_IP,
+        local_port=local_port,
+        server_port=server_port,
+        timeout=timeout,
     )
-
-
-def publisher_config() -> EventBusConfig:
-    """Bus config for the publisher process."""
-    return _config(is_publisher=True, local_port=PUBLISHER_PORT)
-
-
-def subscriber_config(
-    local_port: int = SUBSCRIBER_PORT_BASE,
-) -> EventBusConfig:
-    """Bus config for one subscriber process."""
-    return _config(is_publisher=False, local_port=local_port)

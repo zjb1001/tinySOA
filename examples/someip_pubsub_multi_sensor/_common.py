@@ -60,7 +60,7 @@ def install_quiet_teardown() -> None:
 
     Both originate in the pysomeip SD layer during teardown only. Install this
     handler to drop just those two messages while still logging every real
-    error. (Extends ``examples/someip_cross_process/__init__.py``.)
+    error.
     """
     loop = asyncio.get_running_loop()
 

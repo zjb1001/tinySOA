@@ -6,14 +6,14 @@ import argparse
 import asyncio
 import logging
 
-from tinysoa.config import create_event_bus
-from tinysoa.eventbus import EventMessage
+from tinysoa.eventbus import EventMessage, SomeIPService
 
 from ._common import (
+    EVENT_MAPPINGS,
     SERVICE_ID,
     SUBSCRIBER_PORT_BASE,
     TOPIC,
-    subscriber_config,
+    service_binding,
 )
 
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
@@ -57,7 +57,11 @@ async def main(argv=None) -> int:
         logger.error("--want must be positive")
         return 2
 
-    bus = create_event_bus(subscriber_config(args.local_port))
+    service = SomeIPService(
+        service_binding(local_port=args.local_port),
+        event_mappings=EVENT_MAPPINGS,
+        is_publisher=False,
+    )
     logger.info(
         "starting subscriber=%s service=0x%04x topic=%s want=%d timeout=%.0fs",
         args.subscriber_id,
@@ -66,7 +70,7 @@ async def main(argv=None) -> int:
         args.want,
         args.timeout,
     )
-    await bus.start()
+    await service.start()
 
     received: list[dict] = []
     done = asyncio.Event()
@@ -82,7 +86,7 @@ async def main(argv=None) -> int:
         if len(received) >= args.want:
             done.set()
 
-    bus.subscribe(TOPIC, on_event)
+    service.subscriber(TOPIC).on(on_event)
     try:
         await asyncio.wait_for(done.wait(), timeout=args.timeout)
         logger.info(
@@ -101,7 +105,7 @@ async def main(argv=None) -> int:
         )
         return 1
     finally:
-        await bus.stop()
+        await service.stop()
 
 
 if __name__ == "__main__":

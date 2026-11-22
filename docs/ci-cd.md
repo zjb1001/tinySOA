@@ -57,15 +57,15 @@ python -m pip install -r requirements-dev.txt
 `make smoke` 只跑稳定、可重复的快速子集：
 
 ```bash
-make -C examples smoke-vdp smoke-calc smoke-pubsub smoke-pubsub-many
+make -C examples smoke-vdp smoke-calc smoke-pubsub
 ```
 
-`make -C examples smoke-all` 额外包含 SOME/IP 事件冒烟与跨进程编排。
-SOME/IP 两个事件冒烟的默认参数已按订阅延迟调优：
+`make -C examples smoke-all` 额外包含 SOME/IP 事件冒烟。
+SOME/IP 事件冒烟的默认参数已按订阅延迟调优：
 
 ```bash
-make -C examples smoke-echo-someip   # 默认 20 条 @ 1.0s
-make -C examples smoke-someip        # 默认 30 条 @ 0.5s，AGG_COUNT=9
+make -C examples smoke-someip-one-to-many   # 1vN，20 条 @ 1.0s
+make -C examples smoke-someip               # Nv1，30 条 @ 0.5s，AGG_COUNT=9
 ```
 
 WSL2 回环上 SD 仍可能偶发竞态；失败时先确认没有遗留 SOME/IP 进程。

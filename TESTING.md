@@ -29,8 +29,8 @@ tests/
 | `obs/` | unit | test_observability |
 | `config/` | unit | test_config_merge, test_config_system |
 | `eventbus/` (InMemory+TCP) | integration | test_event_bus |
-| `eventbus/` (SomeIP) | integration | test_someip_bus, test_service_discovery_proto, test_someip_cross_process |
-| examples (all 9) | examples | test_example_local_echo_service, _local_interceptor_auth, _tcp_pubsub_one_to_many, _tcp_pubsub_many_to_one, _someip_pubsub_multi_sensor |
+| `eventbus/` (SomeIP) | integration | test_someip_bus, test_service_discovery_proto |
+| examples (all 8) | examples | test_example_local_echo_service, _local_interceptor_auth, _tcp_pubsub_one_to_many, _someip_pubsub_multi_sensor, _someip_one_to_many_config, _local_pubsub_topologies |
 | system | system/ST-* | standalone scripts (not pytest) |
 
 **Resolved tech debt**:
@@ -220,11 +220,10 @@ def skip_if_sd_contended():
 
 | Test | Reason | Needs |
 |---|---|---|
-| `test_someip_cross_process` | pysomeip SD delivery race on WSL2 | clean Linux loopback |
 | `test_loopback_pubsub` | Port contention in full-suite ordering | exclusive port + sequential run |
 | `test_someip_sensor_delivery` | SD delivery race (same as above) | clean Linux loopback |
 
-On Linux with clean loopback, all three skip-gates should pass.
+On Linux with clean loopback, both skip-gates should pass.
 
 ## 7. Stub Cleanup
 

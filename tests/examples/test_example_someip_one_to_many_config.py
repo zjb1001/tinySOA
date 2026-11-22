@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from examples.someip_pubsub_one_to_many._common import (
+    EVENT_MAPPINGS,
     SERVICE_ID,
     TOPIC,
-    publisher_config,
-    subscriber_config,
+    service_binding,
 )
 from examples.someip_pubsub_one_to_many.publisher import (
     parse_args as parse_publisher_args,
@@ -14,23 +14,29 @@ from examples.someip_pubsub_one_to_many.publisher import (
 from examples.someip_pubsub_one_to_many.subscriber import (
     parse_args as parse_subscriber_args,
 )
-from tinysoa.config import create_event_bus
-from tinysoa.eventbus import SomeIPEventBus
+from tinysoa.eventbus import SomeIPService, TopicPublisher, TopicSubscriber
 
 
-def test_publisher_config_builds_someip_bus() -> None:
-    bus = create_event_bus(publisher_config())
-    assert isinstance(bus, SomeIPEventBus)
-    assert bus.is_publisher is True
-    assert bus.mappings[TOPIC].service_id == SERVICE_ID
+def test_publisher_service_exposes_topic_views() -> None:
+    service = SomeIPService(
+        service_binding(server_port=30920),
+        event_mappings=EVENT_MAPPINGS,
+        is_publisher=True,
+    )
+    assert isinstance(service.publisher(TOPIC), TopicPublisher)
+    assert service.event_bus is not None
+    assert service.event_bus.mappings[TOPIC].service_id == SERVICE_ID
 
 
-def test_subscriber_config_builds_discovery_bus() -> None:
-    bus = create_event_bus(subscriber_config(30931))
-    assert isinstance(bus, SomeIPEventBus)
-    assert bus.is_publisher is False
-    assert bus.mappings[TOPIC].service_id == SERVICE_ID
-    assert bus.publisher_port_base == 30931
+def test_subscriber_service_exposes_topic_views() -> None:
+    service = SomeIPService(
+        service_binding(local_port=30931),
+        event_mappings=EVENT_MAPPINGS,
+        is_publisher=False,
+    )
+    assert isinstance(service.subscriber(TOPIC), TopicSubscriber)
+    assert service.event_bus is not None
+    assert service.event_bus.mappings[TOPIC].service_id == SERVICE_ID
 
 
 def test_publisher_cli_defaults() -> None:

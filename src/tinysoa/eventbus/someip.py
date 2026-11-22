@@ -117,6 +117,23 @@ class SomeIPPublisher:
         self._pending_eventgroups: List[
             Tuple[int, Callable[[bytes], Awaitable[None]]]
         ] = []
+        self._methods: Dict[int, Callable] = {}
+        self._pending_methods: List[Tuple[int, Callable]] = []
+
+    @property
+    def service(self) -> Optional[SimpleService]:
+        """The underlying pysomeip service (available after ``start``)."""
+        return self._service
+
+    def register_method(self, method_id: int, handler: Callable) -> None:
+        """Register a SOME/IP method handler (sync pysomeip callback)."""
+        if method_id in self._methods:
+            raise ValueError(f"Method {method_id:#x} already registered")
+        self._methods[method_id] = handler
+        if self._service is not None:
+            self._service.register_method(method_id, handler)
+        else:
+            self._pending_methods.append((method_id, handler))
 
     def add_eventgroup(
         self, eventgroup_id: int, on_notification: Callable[[bytes], Awaitable[None]]
@@ -156,6 +173,11 @@ class SomeIPPublisher:
                 f"Failed to bind service to {self.local_addr}:{self.port}: {e}"
             )
             raise
+
+        # Register pending methods before announce.
+        for method_id, handler in self._pending_methods:
+            self._service.register_method(method_id, handler)
+        self._pending_methods.clear()
 
         # Register pending eventgroups before announce so SD matches subscriptions
         for eg_id, cb in self._pending_eventgroups:
@@ -403,6 +425,16 @@ class SomeIPEndpoint:
     @property
     def service_ports(self) -> Dict[Tuple[int, int], int]:
         return self._service_ports
+
+    @property
+    def sd_protocol(self):
+        """The SD protocol instance, or ``None`` when SD creation failed."""
+        return self._sd_prot
+
+    @property
+    def announcer(self):
+        """The SD announcer in publisher mode, or ``None``."""
+        return self._sd_announcer
 
     async def start(self) -> None:
         """Initialize SD, transports, and the subscriber-side discovery."""

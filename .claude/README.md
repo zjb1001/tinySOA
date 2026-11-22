@@ -65,6 +65,7 @@ SOME/IP 协议层（pysomeip）/ asyncio 传输（UDP/TCP）
 - **EventBus ABC**（`eventbus/bus.py`）：`publish` / `subscribe` / `unsubscribe` / `get_subscribers_count` 四个抽象方法 —— 这是协议栈的接入缝。`ManagedEventBus` 补 `async start/stop`，`Topology` 声明 `LOCAL/BROKER/PEER`。
 - **TCP 的传输与总线分离**：`BrokerEventBus` 持有 broker 总线语义，`MessageStream` 抽象 transport；`TCPEventBus = BrokerEventBus + TCPMessageStream`，`TCPEventBusBroker` 是中心 broker。
 - **SOME/IP 是协议栈之一**：`SomeIPEventBus(EventBus)` 在 `eventbus/someip.py`，把 topic 映射到 SOME/IP eventgroup，复用 pysomeip 的 SD 与 SimpleService。
+- **SOME/IP method**：`SomeIPMethodInvoker(ServiceInvoker)` + `SomeIPMethodDispatcher` 在 `eventbus/someip_method.py`；应用只写逻辑服务名/方法名，SD 与 REQUEST/RESPONSE 由框架处理。
 - **测试/运行**：pytest + pytest-asyncio；`cd tinySOA && export PYTHONPATH=$PWD/src`；`uvx pytest -q tests`。
 
 ## 文件

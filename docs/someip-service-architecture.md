@@ -16,7 +16,18 @@
 - `SomeIPEventBus` 只保留 topic 解析、订阅表和序列化，SD/transport 全部委托给 endpoint；
 - 后续 method/field adapter 可以复用同一个 `SomeIPEndpoint`。
 
-method、field、E2E、TP 是后续阶段，本文档描述目标架构。
+已落地 Phase 3（方法调用）：
+
+- `SomeIPServiceBinding`：逻辑服务名 / method 名 → SOME/IP ID；
+- `SomeIPMethodInvoker`：实现 `ServiceInvoker`，负责 SD 发现、REQUEST/RESPONSE、
+  session 匹配、JSON 编解码和超时；
+- `SomeIPMethodDispatcher`：服务端注册 async handler，自动处理 RESPONSE/ERROR；
+- Calculator 示例已切到框架 API。
+
+尚未统一：同一个 `(service_id, instance_id)` 的 event 和 method 仍由不同的
+`SomeIPPublisher` 实例承载；把两者合并到单一服务实例是后续工作。
+
+field、E2E、TP 是后续阶段，本文档描述目标架构。
 
 ## 1. 应用侧
 
@@ -185,7 +196,7 @@ src/tinysoa/
 |---|---|---|
 | 1 | `EventBusConfig` / `TopicBinding` / `create_event_bus`，应用只写 topic | ✅ |
 | 2 | 抽 `SomeIPEndpoint`，event 共享端点 | ✅ |
-| 3 | `SomeIPMethodInvoker` + `ServiceInvoker` | 待做 |
+| 3 | `SomeIPMethodInvoker` + `ServiceInvoker` | ✅ |
 | 4 | `SomeIPField` 门面 | 待做 |
 | 5 | `Codec` 抽象 | 待做 |
 | 6 | E2E 单 profile | 待做 |

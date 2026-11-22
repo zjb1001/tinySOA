@@ -31,11 +31,21 @@ try:
         SomeIPSubscriber,
         SomeIPTopicMapping,
     )
+    from .someip_method import (
+        SomeIPMethodDispatcher,
+        SomeIPMethodInvoker,
+        SomeIPRemoteError,
+        SomeIPServiceBinding,
+    )
 except ImportError:  # pragma: no cover — someip is vendored and always present
     SomeIPEventBus = None  # type: ignore[assignment,misc]
     SomeIPTopicMapping = None  # type: ignore[assignment,misc]
     SomeIPPublisher = None  # type: ignore[assignment,misc]
     SomeIPSubscriber = None  # type: ignore[assignment,misc]
+    SomeIPMethodDispatcher = None  # type: ignore[assignment,misc]
+    SomeIPMethodInvoker = None  # type: ignore[assignment,misc]
+    SomeIPRemoteError = None  # type: ignore[assignment,misc]
+    SomeIPServiceBinding = None  # type: ignore[assignment,misc]
 
 __all__ = [
     "EventBus",
@@ -54,6 +64,10 @@ __all__ = [
     "SomeIPTopicMapping",
     "SomeIPPublisher",
     "SomeIPSubscriber",
+    "SomeIPMethodDispatcher",
+    "SomeIPMethodInvoker",
+    "SomeIPRemoteError",
+    "SomeIPServiceBinding",
     "EventMessage",
     "EventHandler",
     "Subscription",

@@ -11,6 +11,7 @@ Slow / real-network tests (loopback TCP) are marked ``@pytest.mark.slow``
 and gated behind a port-availability probe; they are **not** run in the
 default ``pytest tests/`` invocation.
 """
+
 from __future__ import annotations
 
 import os
@@ -20,21 +21,30 @@ import time
 
 import pytest
 
-
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
 
+
 def _run_help(module_path: str) -> bool:
     """Run ``python <module> --help`` and return whether it exits cleanly."""
     import os
-    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
-    env = {**os.environ, "PYTHONPATH": f"{repo_root}/src:{repo_root}/third_party/pysomeip/src"}
+
+    repo_root = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )  # repo root
+    env = {
+        **os.environ,
+        "PYTHONPATH": f"{repo_root}/src:{repo_root}/third_party/pysomeip/src",
+    }
     try:
         subprocess.run(
             [sys.executable, module_path, "--help"],
-            capture_output=True, text=True, timeout=10,
-            check=True, env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=True,
+            env=env,
         )
         return True
     except (subprocess.CalledProcessError, FileNotFoundError):
@@ -44,6 +54,7 @@ def _run_help(module_path: str) -> bool:
 def _port_free(host: str, port: int) -> bool:
     """Return ``True`` if *port* on *host* is not listening."""
     import socket
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         try:
             s.bind((host, port))
@@ -57,15 +68,17 @@ def _port_free(host: str, port: int) -> bool:
 # --------------------------------------------------------------------------- #
 
 _MODULES: tuple[tuple[str, str], ...] = (
-    ("server",    "examples/pubsub_multi/server.py"),
-    ("subscriber","examples/pubsub_multi/subscriber.py"),
+    ("server", "examples/pubsub_multi/server.py"),
+    ("subscriber", "examples/pubsub_multi/subscriber.py"),
     ("publisher", "examples/pubsub_multi/publisher.py"),
 )
+
 
 @pytest.mark.parametrize("label, relpath", _MODULES)
 def test_module_imports_cleanly(label: str, relpath: str) -> None:
     """Each pubsub_multi module imports without raising an exception."""
     import importlib
+
     modname = relpath.replace("/", ".").removesuffix(".py")
     importlib.import_module(modname)
 
@@ -75,10 +88,11 @@ def test_module_imports_cleanly(label: str, relpath: str) -> None:
 # --------------------------------------------------------------------------- #
 
 _PYTHON_EXAMPLES: dict[str, str] = {
-    "server":     "examples/pubsub_multi/server.py",
+    "server": "examples/pubsub_multi/server.py",
     "subscriber": "examples/pubsub_multi/subscriber.py",
-    "publisher":  "examples/pubsub_multi/publisher.py",
+    "publisher": "examples/pubsub_multi/publisher.py",
 }
+
 
 @pytest.mark.parametrize("label, relpath", sorted(_PYTHON_EXAMPLES.items()))
 def test_help_flag_exits_zero(label: str, relpath: str) -> None:
@@ -91,7 +105,7 @@ def test_help_flag_exits_zero(label: str, relpath: str) -> None:
 # Slow: loopback TCP integration (1 server + 1 subscriber + 5 msgs)
 # --------------------------------------------------------------------------- #
 
-import platform as _platform
+import platform as _platform  # noqa: E402
 
 _WSL2 = "microsoft" in _platform.uname().release.lower()
 
@@ -109,31 +123,67 @@ def test_loopback_pubsub_delivers_all_messages(tmp_path) -> None:
     if not _port_free(host, port):
         pytest.skip(f"port {port} is already in use")
 
-    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    repo_root = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
     env = {
         **os.environ,
         "PYTHONPATH": f"{repo_root}/src:{repo_root}/third_party/pysomeip/src",
     }
 
     server_log = tmp_path / "server.log"
-    sub_log   = tmp_path / "sub.log"
-    server_pid  = subprocess.Popen(
-        [sys.executable, "examples/pubsub_multi/server.py", "--host", host, "--port", str(port)],
-        stdout=open(server_log, "w"), stderr=subprocess.STDOUT, env=env,
+    sub_log = tmp_path / "sub.log"
+    server_pid = subprocess.Popen(
+        [
+            sys.executable,
+            "examples/pubsub_multi/server.py",
+            "--host",
+            host,
+            "--port",
+            str(port),
+        ],
+        stdout=open(server_log, "w"),
+        stderr=subprocess.STDOUT,
+        env=env,
     )
     sub_pid = subprocess.Popen(
-        [sys.executable, "examples/pubsub_multi/subscriber.py", "test-0",
-         "--topic", "test.pubsub", "--host", host, "--port", str(port)],
-        stdout=open(sub_log, "w"), stderr=subprocess.STDOUT, env=env,
+        [
+            sys.executable,
+            "examples/pubsub_multi/subscriber.py",
+            "test-0",
+            "--topic",
+            "test.pubsub",
+            "--host",
+            host,
+            "--port",
+            str(port),
+        ],
+        stdout=open(sub_log, "w"),
+        stderr=subprocess.STDOUT,
+        env=env,
     )
     time.sleep(1.5)  # let server + subscriber initialise
 
     try:
         pub = subprocess.Popen(
-            [sys.executable, "examples/pubsub_multi/publisher.py",
-             "--topic", "test.pubsub", "--count", "5", "--interval", "0.3",
-             "--host", host, "--port", str(port)],
-            text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env,
+            [
+                sys.executable,
+                "examples/pubsub_multi/publisher.py",
+                "--topic",
+                "test.pubsub",
+                "--count",
+                "5",
+                "--interval",
+                "0.3",
+                "--host",
+                host,
+                "--port",
+                str(port),
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=env,
         )
         try:
             stdout, _ = pub.communicate(timeout=15)
@@ -148,9 +198,13 @@ def test_loopback_pubsub_delivers_all_messages(tmp_path) -> None:
         server_pid.terminate()
         sub_pid.terminate()
         time.sleep(0.5)
-        server_pid.kill(); sub_pid.kill()
-        server_pid.wait(); sub_pid.wait()
+        server_pid.kill()
+        sub_pid.kill()
+        server_pid.wait()
+        sub_pid.wait()
 
     received = open(sub_log).read()
     count = received.count("INFO")
-    assert count >= 4, f"subscriber received only {count} lines (expected ≥4):\n{received}"
+    assert (
+        count >= 4
+    ), f"subscriber received only {count} lines (expected ≥4):\n{received}"

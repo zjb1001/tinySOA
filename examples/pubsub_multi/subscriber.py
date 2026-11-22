@@ -12,6 +12,7 @@ Run (from the ``tinySOA`` directory; start ``server.py`` first):
 
 Exit code 0 on clean shutdown (SIGINT/SIGTERM), 1 if the broker is unreachable.
 """
+
 from __future__ import annotations
 
 import argparse

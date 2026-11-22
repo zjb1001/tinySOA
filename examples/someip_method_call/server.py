@@ -12,6 +12,7 @@ Client 发来 REQUEST（含 JSON 操作数），Server 计算后返回 RESPONSE�
 
 退出码 0 正常；1 端口占用或其它错误。
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,21 +31,20 @@ for _p in (str(_repo / "src"), str(_repo / "third_party" / "pysomeip" / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import someip.header as hdr
-from someip.sd import (
-    ServiceDiscoveryProtocol,
-    SOMEIPDatagramProtocol,
-    DatagramProtocolAdapter,
-)
-
-from _common import (
+import someip.header as hdr  # noqa: E402
+from _common import (  # noqa: E402
+    INSTANCE_ID,
     LOCAL_IP,
+    MAJOR_VERSION,
+    METHODS,
+    MINOR_VERSION,
     SERVER_PORT,
     SERVICE_ID,
-    INSTANCE_ID,
-    MAJOR_VERSION,
-    MINOR_VERSION,
-    METHODS,
+)
+from someip.sd import (  # noqa: E402
+    DatagramProtocolAdapter,
+    ServiceDiscoveryProtocol,
+    SOMEIPDatagramProtocol,
 )
 
 logger = logging.getLogger("calc.server")
@@ -85,22 +85,30 @@ class CalculatorService(SOMEIPDatagramProtocol):
             return  # Service 不应从多播收业务报文
 
         if someip_message.service_id != SERVICE_ID:
-            self._send_error(someip_message, addr, hdr.SOMEIPReturnCode.E_UNKNOWN_SERVICE)
+            self._send_error(
+                someip_message, addr, hdr.SOMEIPReturnCode.E_UNKNOWN_SERVICE
+            )
             return
 
         if someip_message.message_type not in (
             hdr.SOMEIPMessageType.REQUEST,
             hdr.SOMEIPMessageType.REQUEST_NO_RETURN,
         ):
-            self._send_error(someip_message, addr, hdr.SOMEIPReturnCode.E_WRONG_MESSAGE_TYPE)
+            self._send_error(
+                someip_message, addr, hdr.SOMEIPReturnCode.E_WRONG_MESSAGE_TYPE
+            )
             return
 
         handler = self._handlers.get(someip_message.method_id)
         if handler is None:
-            self._send_error(someip_message, addr, hdr.SOMEIPReturnCode.E_UNKNOWN_METHOD)
+            self._send_error(
+                someip_message, addr, hdr.SOMEIPReturnCode.E_UNKNOWN_METHOD
+            )
             return
 
-        method_name = {v: k for k, v in METHODS.items()}.get(someip_message.method_id, "?")
+        method_name = {v: k for k, v in METHODS.items()}.get(
+            someip_message.method_id, "?"
+        )
         logger.info(
             "REQUEST  method=%s (0x%04x) session=0x%04x payload=%r",
             method_name,
@@ -112,7 +120,9 @@ class CalculatorService(SOMEIPDatagramProtocol):
         try:
             response_payload = handler(someip_message, addr)
         except Exception:
-            self._send_error(someip_message, addr, hdr.SOMEIPReturnCode.E_MALFORMED_MESSAGE)
+            self._send_error(
+                someip_message, addr, hdr.SOMEIPReturnCode.E_MALFORMED_MESSAGE
+            )
             return
 
         if (
@@ -128,6 +138,7 @@ class CalculatorService(SOMEIPDatagramProtocol):
         return_code: hdr.SOMEIPReturnCode,
     ) -> None:
         import dataclasses
+
         resp = dataclasses.replace(
             msg,
             message_type=hdr.SOMEIPMessageType.ERROR,
@@ -143,6 +154,7 @@ class CalculatorService(SOMEIPDatagramProtocol):
         payload: bytes,
     ) -> None:
         import dataclasses
+
         resp = dataclasses.replace(
             msg, message_type=hdr.SOMEIPMessageType.RESPONSE, payload=payload
         )
@@ -174,9 +186,18 @@ _LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="SOME/IP Calculator Server")
-    parser.add_argument("--host", default=LOCAL_IP, help=f"bind address (default: {LOCAL_IP})")
-    parser.add_argument("--port", type=int, default=SERVER_PORT, help=f"listen port (default: {SERVER_PORT})")
-    parser.add_argument("--log-level", default="INFO", choices=_LOG_LEVELS, help="logging verbosity")
+    parser.add_argument(
+        "--host", default=LOCAL_IP, help=f"bind address (default: {LOCAL_IP})"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=SERVER_PORT,
+        help=f"listen port (default: {SERVER_PORT})",
+    )
+    parser.add_argument(
+        "--log-level", default="INFO", choices=_LOG_LEVELS, help="logging verbosity"
+    )
     return parser.parse_args(argv)
 
 
@@ -190,7 +211,10 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
 
     logger.info(
         "Calculator Server starting — service_id=0x%04x instance=0x%04x on %s:%d",
-        SERVICE_ID, INSTANCE_ID, args.host, args.port,
+        SERVICE_ID,
+        INSTANCE_ID,
+        args.host,
+        args.port,
     )
 
     # 1. 创建 Service Discovery
@@ -213,7 +237,8 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
     logger.info("Calculator service bound to %s:%d", args.host, args.port)
 
     # 3. 通告服务（SD Offer）
-    from someip.config import Eventgroup, Service as SomeIPServiceConfig
+    from someip.config import Eventgroup
+    from someip.config import Service as SomeIPServiceConfig
     from someip.header import L4Protocols
 
     sockname = trsp.get_extra_info("sockname")
@@ -228,11 +253,14 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
         eventgroups=frozenset(),
     )
     from someip.sd import ServiceInstance
+
     si = ServiceInstance(svc_config, calc_prot, sd_prot.announcer, sd_prot.timings)
     sd_prot.announcer.announce_service(si)
     logger.info(
         "SD Offer: service=0x%04x instance=0x%04x methods=%s",
-        SERVICE_ID, INSTANCE_ID, list(METHODS.keys()),
+        SERVICE_ID,
+        INSTANCE_ID,
+        list(METHODS.keys()),
     )
 
     # 4. 等待 Client 请求（按 Ctrl+C 退出）

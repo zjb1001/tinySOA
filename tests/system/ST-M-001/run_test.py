@@ -1,14 +1,18 @@
+import logging
 import subprocess
 import sys
 import time
 from pathlib import Path
-import logging
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("ST-M-001-ORCH")
+
 
 def run_subprocess(script: Path) -> subprocess.Popen:
     return subprocess.Popen([sys.executable, str(script)], cwd=script.parent)
+
 
 def main():
     logger.info("Starting ST-M-001 orchestrator (Pub in one process, Sub in another)")
@@ -26,7 +30,7 @@ def main():
     logger.info("Subscriber process started (PID=%s)", sub_proc.pid)
 
     sub_rc = sub_proc.wait()
-    
+
     # Terminate publisher after subscriber finishes
     pub_proc.terminate()
     pub_proc.wait()
@@ -34,8 +38,9 @@ def main():
     if sub_rc != 0:
         logger.error("Subscriber failed with rc=%s", sub_rc)
         sys.exit(sub_rc)
-    
+
     logger.info("ST-M-001 orchestrator completed successfully")
+
 
 if __name__ == "__main__":
     main()

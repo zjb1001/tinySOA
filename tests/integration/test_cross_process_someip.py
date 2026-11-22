@@ -18,9 +18,9 @@ Run:
 
 (Use ``-m 'not slow'`` to skip the real-network integration test.)
 """
+
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -115,6 +115,8 @@ class TestCrossProcessDelivery:
                 pytest.skip("pysomeip SD delivery could not recover; see comment")
         # --------------------------------------------------------------------
 
-        assert proc.returncode == 0, f"orchestrator failed (rc={proc.returncode}):\n{out}"
+        assert (
+            proc.returncode == 0
+        ), f"orchestrator failed (rc={proc.returncode}):\n{out}"
         assert "RESULT:" in out and "PASS" in out, f"unexpected output:\n{out}"
         assert "received=3/3" in out, f"subscriber did not collect 3 events:\n{out}"

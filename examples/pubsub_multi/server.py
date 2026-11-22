@@ -12,6 +12,7 @@ Run (from the ``tinySOA`` directory, tinysoa + someip resolve from source):
 
 Exit code 0 on clean shutdown (SIGINT/SIGTERM), 1 if the port is unavailable.
 """
+
 from __future__ import annotations
 
 import argparse

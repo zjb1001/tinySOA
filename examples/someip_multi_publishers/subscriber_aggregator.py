@@ -14,6 +14,7 @@ directory):
 
 Exit code 0 on clean shutdown.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -23,18 +24,18 @@ import sys
 from collections import defaultdict
 from typing import Awaitable, Callable, Dict, List
 
-from tinysoa.eventbus.message import EventMessage
-from tinysoa.eventbus.someip import SomeIPEventBus
-
 from _common import (
     LOCAL_IP,
     LOG_LEVELS,
-    SENSORS,
     SENSOR_MAPPINGS,
+    SENSORS,
     SensorSpec,
     configure_logging,
     install_quiet_teardown,
 )
+
+from tinysoa.eventbus.message import EventMessage
+from tinysoa.eventbus.someip import SomeIPEventBus
 
 logger = logging.getLogger("someip.demo.aggregator")
 
@@ -59,7 +60,9 @@ class SensorAggregator:
         spec = self._specs[key]
 
         async def on_reading(msg: EventMessage) -> None:
-            payload = msg.payload if isinstance(msg.payload, dict) else {"raw": msg.payload}
+            payload = (
+                msg.payload if isinstance(msg.payload, dict) else {"raw": msg.payload}
+            )
             self.latest[key] = payload
             self.counts[key] += 1
             logger.info(
@@ -92,9 +95,14 @@ class SensorAggregator:
 
 
 def parse_args(argv=None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="tinySOA SOME/IP sensor aggregator subscriber")
+    parser = argparse.ArgumentParser(
+        description="tinySOA SOME/IP sensor aggregator subscriber"
+    )
     parser.add_argument(
-        "--port", type=int, default=DEFAULT_SUBSCRIBER_PORT, help="subscriber unicast port base"
+        "--port",
+        type=int,
+        default=DEFAULT_SUBSCRIBER_PORT,
+        help="subscriber unicast port base",
     )
     parser.add_argument(
         "--count",
@@ -103,7 +111,10 @@ def parse_args(argv=None) -> argparse.Namespace:
         help="total readings before stopping; 0 = forever (default: 0)",
     )
     parser.add_argument(
-        "--log-level", default="INFO", choices=LOG_LEVELS, help="logging verbosity (default: INFO)"
+        "--log-level",
+        default="INFO",
+        choices=LOG_LEVELS,
+        help="logging verbosity (default: INFO)",
     )
     return parser.parse_args(argv)
 
@@ -115,7 +126,9 @@ async def main(argv=None) -> int:
 
     # is_publisher=False: discovery-only — do not advertise; let the real
     # publishers announce their services so SD finds them, not us.
-    bus = SomeIPEventBus(SENSOR_MAPPINGS, local_ip=LOCAL_IP, publisher_port=args.port, is_publisher=False)
+    bus = SomeIPEventBus(
+        SENSOR_MAPPINGS, local_ip=LOCAL_IP, publisher_port=args.port, is_publisher=False
+    )
     aggregator = SensorAggregator(SENSORS)
     subscriptions: List = []
 
@@ -138,7 +151,9 @@ async def main(argv=None) -> int:
         for sub in subscriptions:
             bus.unsubscribe(sub)
         await bus.stop()
-        logger.info("aggregator stopped after %d total reading(s)", aggregator.total_readings())
+        logger.info(
+            "aggregator stopped after %d total reading(s)", aggregator.total_readings()
+        )
     return 0
 
 

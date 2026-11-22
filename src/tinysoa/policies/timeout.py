@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Callable, Any, Awaitable
+from typing import Any, Awaitable, Callable
 
 
 class TimeoutError(Exception):
@@ -20,7 +20,9 @@ class TimeoutPolicy:
         try:
             return await asyncio.wait_for(func(), timeout=self.timeout_seconds)
         except asyncio.TimeoutError as exc:
-            raise TimeoutError(f"Operation timed out after {self.timeout_seconds}s") from exc
+            raise TimeoutError(
+                f"Operation timed out after {self.timeout_seconds}s"
+            ) from exc
 
     def shutdown(self) -> None:
         pass  # No executor to shutdown in asyncio version

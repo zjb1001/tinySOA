@@ -6,6 +6,7 @@ the same ``SomeIPEventBus`` instance through the SOME/IP stack on loopback.
 Run:
     python tests/system_tests/ST-001/run_test.py   # from repo root; _common adds paths
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -15,7 +16,12 @@ from pathlib import Path
 
 # Make _common importable whether run as a bare script from this dir or via -m.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # -> system_tests/
-from _common import configure_logging, install_quiet_exception_handler, setup_path  # noqa: E402
+from _common import (
+    configure_logging,
+    install_quiet_exception_handler,
+    setup_path,
+)  # noqa: E402
+
 setup_path()  # -> adds tinysoa/src + pysomeip/src
 
 from tinysoa.eventbus.message import EventMessage  # noqa: E402
@@ -34,7 +40,9 @@ async def run_test() -> None:
 
     mappings = {
         TEST_TOPIC: SomeIPTopicMapping(
-            service_id=0x1234, instance_id=0x0001, eventgroup_id=0x0001,
+            service_id=0x1234,
+            instance_id=0x0001,
+            eventgroup_id=0x0001,
         ),
     }
 
@@ -73,7 +81,9 @@ async def run_test() -> None:
         logger.info("Payload verification PASSED")
     else:
         logger.error(
-            "Payload verification FAILED. Expected %s, got %s", payload, received_payload,
+            "Payload verification FAILED. Expected %s, got %s",
+            payload,
+            received_payload,
         )
         await bus.stop()
         sys.exit(1)

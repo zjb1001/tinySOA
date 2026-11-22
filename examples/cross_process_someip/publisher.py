@@ -11,14 +11,12 @@ Run (from repo root, no install needed — both packages resolve from source):
 
 Exit code 0 on clean shutdown.
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import sys
-
-from tinysoa.eventbus.message import EventMessage
-from tinysoa.eventbus.someip import SomeIPEventBus
 
 from examples.cross_process_someip import (
     LOCAL_IP,
@@ -27,6 +25,8 @@ from examples.cross_process_someip import (
     TOPIC,
     quiet_teardown,
 )
+from tinysoa.eventbus.message import EventMessage
+from tinysoa.eventbus.someip import SomeIPEventBus
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,8 +48,12 @@ async def main() -> None:
         publisher_port=PUBLISHER_PORT_BASE,
         is_publisher=True,
     )
-    logger.info("starting (service 0x2222, port base %d), will publish %d events @ %.2fs",
-                PUBLISHER_PORT_BASE, count, interval)
+    logger.info(
+        "starting (service 0x2222, port base %d), will publish %d events @ %.2fs",
+        PUBLISHER_PORT_BASE,
+        count,
+        interval,
+    )
     await bus.start()
 
     # Let the SD Offer propagate before we start notifying, so a subscriber

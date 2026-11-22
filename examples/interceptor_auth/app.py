@@ -38,6 +38,7 @@ Run (from the repo root, both source roots on PYTHONPATH):
 
 Exit code 0 on success, 130 on Ctrl-C.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -255,9 +256,7 @@ async def run(scenario: str) -> None:
         "chain  : CorrelationIdInterceptor(1) -> AuthInterceptor(5) "
         "-> TimingInterceptor(15) -> greet_invoker"
     )
-    names = (
-        ["authorized", "unauthorized", "error"] if scenario == "all" else [scenario]
-    )
+    names = ["authorized", "unauthorized", "error"] if scenario == "all" else [scenario]
     for n in names:
         await run_scenario(n)
 

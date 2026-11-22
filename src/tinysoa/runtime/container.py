@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from typing import Dict, Optional, Set
+
+from tinysoa.core.errors import DuplicateError
 from tinysoa.core.model import Service, ServiceStatus
-from tinysoa.core.errors import NotFoundError, DuplicateError, StateError
 
 
 class Container:
     """Service container managing service instances and their dependencies.
-    
+
     Provides registration, lookup, and basic dependency awareness.
     """
 
@@ -19,7 +20,7 @@ class Container:
         """Add a service to the container. Must be unique by id."""
         if service.id in self._services:
             raise DuplicateError(f"Service id {service.id} already exists")
-        
+
         self._services[service.id] = service
         self._name_index.setdefault(service.name, set()).add(service.id)
 

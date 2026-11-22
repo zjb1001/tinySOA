@@ -1,14 +1,14 @@
 import pytest
 
+from tinysoa.core.errors import DuplicateError, StateError, ValidationError
 from tinysoa.core.model import (
-    Service,
-    Method,
-    Event,
     Endpoint,
+    Event,
+    Method,
     Protocol,
+    Service,
     ServiceStatus,
 )
-from tinysoa.core.errors import DuplicateError, ValidationError, StateError
 
 
 def test_endpoint_validation():
@@ -27,13 +27,24 @@ def test_service_unique_methods_and_events():
     assert svc.name == "echo"
 
     with pytest.raises(DuplicateError):
-        Service(name="dup", id=11, version="1.0.0", methods=[Method("m", 1), Method("m", 2)])
+        Service(
+            name="dup", id=11, version="1.0.0", methods=[Method("m", 1), Method("m", 2)]
+        )
     with pytest.raises(DuplicateError):
-        Service(name="dup", id=12, version="1.0.0", methods=[Method("m1", 1), Method("m2", 1)])
+        Service(
+            name="dup",
+            id=12,
+            version="1.0.0",
+            methods=[Method("m1", 1), Method("m2", 1)],
+        )
     with pytest.raises(DuplicateError):
-        Service(name="dup", id=13, version="1.0.0", events=[Event("e", 1), Event("e", 2)])
+        Service(
+            name="dup", id=13, version="1.0.0", events=[Event("e", 1), Event("e", 2)]
+        )
     with pytest.raises(DuplicateError):
-        Service(name="dup", id=14, version="1.0.0", events=[Event("e1", 1), Event("e2", 1)])
+        Service(
+            name="dup", id=14, version="1.0.0", events=[Event("e1", 1), Event("e2", 1)]
+        )
 
 
 def test_service_status_transitions():
@@ -67,17 +78,20 @@ def test_service_status_transitions():
 # ------------------------------------------------------------------ FSM completeness
 
 
-@pytest.mark.parametrize("from_status,action,to_status", [
-    (ServiceStatus.INIT,       "register",   ServiceStatus.REGISTERED),
-    (ServiceStatus.REGISTERED, "start",      ServiceStatus.RUNNING),
-    (ServiceStatus.RUNNING,    "stop",       ServiceStatus.STOPPED),
-    (ServiceStatus.STOPPED,    "start",      ServiceStatus.RUNNING),
-    (ServiceStatus.RUNNING,    "terminate",  ServiceStatus.TERMINATED),
-    (ServiceStatus.REGISTERED, "terminate",  ServiceStatus.TERMINATED),
-    (ServiceStatus.STOPPED,    "terminate",  ServiceStatus.TERMINATED),
-    (ServiceStatus.INIT,       "terminate",  ServiceStatus.TERMINATED),
-    (ServiceStatus.TERMINATED, "terminate",  ServiceStatus.TERMINATED),
-])
+@pytest.mark.parametrize(
+    "from_status,action,to_status",
+    [
+        (ServiceStatus.INIT, "register", ServiceStatus.REGISTERED),
+        (ServiceStatus.REGISTERED, "start", ServiceStatus.RUNNING),
+        (ServiceStatus.RUNNING, "stop", ServiceStatus.STOPPED),
+        (ServiceStatus.STOPPED, "start", ServiceStatus.RUNNING),
+        (ServiceStatus.RUNNING, "terminate", ServiceStatus.TERMINATED),
+        (ServiceStatus.REGISTERED, "terminate", ServiceStatus.TERMINATED),
+        (ServiceStatus.STOPPED, "terminate", ServiceStatus.TERMINATED),
+        (ServiceStatus.INIT, "terminate", ServiceStatus.TERMINATED),
+        (ServiceStatus.TERMINATED, "terminate", ServiceStatus.TERMINATED),
+    ],
+)
 def test_all_legal_fsm_transitions(from_status, action, to_status):
     svc = Service(name="fsm", id=1, version="1.0.0")
     svc.status = from_status
@@ -85,18 +99,21 @@ def test_all_legal_fsm_transitions(from_status, action, to_status):
     assert svc.status is to_status
 
 
-@pytest.mark.parametrize("from_status,action", [
-    (ServiceStatus.INIT,       "stop"),
-    (ServiceStatus.INIT,       "start"),
-    (ServiceStatus.REGISTERED, "register"),
-    (ServiceStatus.RUNNING,    "register"),
-    (ServiceStatus.RUNNING,    "start"),
-    (ServiceStatus.STOPPED,    "stop"),
-    (ServiceStatus.STOPPED,    "register"),
-    (ServiceStatus.TERMINATED, "start"),
-    (ServiceStatus.TERMINATED, "stop"),
-    (ServiceStatus.TERMINATED, "register"),
-])
+@pytest.mark.parametrize(
+    "from_status,action",
+    [
+        (ServiceStatus.INIT, "stop"),
+        (ServiceStatus.INIT, "start"),
+        (ServiceStatus.REGISTERED, "register"),
+        (ServiceStatus.RUNNING, "register"),
+        (ServiceStatus.RUNNING, "start"),
+        (ServiceStatus.STOPPED, "stop"),
+        (ServiceStatus.STOPPED, "register"),
+        (ServiceStatus.TERMINATED, "start"),
+        (ServiceStatus.TERMINATED, "stop"),
+        (ServiceStatus.TERMINATED, "register"),
+    ],
+)
 def test_illegal_fsm_transitions_raise_state_error(from_status, action):
     svc = Service(name="fsm", id=2, version="1.0.0")
     svc.status = from_status
@@ -107,7 +124,7 @@ def test_illegal_fsm_transitions_raise_state_error(from_status, action):
 def test_can_transition_predicate():
     svc = Service(name="fsm", id=3, version="1.0.0")
     assert svc.can_transition(ServiceStatus.REGISTERED) is True
-    assert svc.can_transition(ServiceStatus.STOPPED) is False   # INIT -> STOP illegal
+    assert svc.can_transition(ServiceStatus.STOPPED) is False  # INIT -> STOP illegal
     svc.status = ServiceStatus.REGISTERED
     assert svc.can_transition(ServiceStatus.RUNNING) is True
 

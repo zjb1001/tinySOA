@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Mapping, Optional
 from uuid import UUID, uuid4
-from datetime import datetime, timezone
 
-from .errors import ValidationError, StateError, DuplicateError
+from .errors import DuplicateError, StateError, ValidationError
 
 
 class Protocol(str, Enum):

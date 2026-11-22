@@ -10,6 +10,7 @@ Pins the public behavior of the demo so refactors stay honest:
     ``try/finally`` interceptor still observes the exit, a plain-``await`` one
     does not.
 """
+
 from __future__ import annotations
 
 import pytest

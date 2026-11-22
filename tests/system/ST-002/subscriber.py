@@ -2,15 +2,18 @@ import asyncio
 import logging
 import os
 import sys
-from datetime import datetime
 
 # Add src to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../src")))
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../src"))
+)
 
-from tinysoa.eventbus.someip import SomeIPEventBus, SomeIPTopicMapping
 from tinysoa.eventbus.message import EventMessage
+from tinysoa.eventbus.someip import SomeIPEventBus, SomeIPTopicMapping
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("ST-002-SUB")
 
 
@@ -23,7 +26,9 @@ def install_quiet_exception_handler(loop: asyncio.AbstractEventLoop) -> None:
         if isinstance(exc, RuntimeError) and "task already stopped" in str(exc):
             logger.debug("Swallowing expected RuntimeError during shutdown: %s", exc)
             return
-        if isinstance(exc, AttributeError) and ("sendto" in str(exc) or "call_exception_handler" in str(exc)):
+        if isinstance(exc, AttributeError) and (
+            "sendto" in str(exc) or "call_exception_handler" in str(exc)
+        ):
             logger.debug("Swallowing expected AttributeError during shutdown: %s", exc)
             return
         default_handler(ctx)
@@ -61,7 +66,9 @@ async def main():
     async def handler(msg: EventMessage):
         nonlocal received_payload
         if msg.payload.get("data") != validation_marker:
-            logger.info(f"Ignoring non-validation payload on {msg.topic}: {msg.payload}")
+            logger.info(
+                f"Ignoring non-validation payload on {msg.topic}: {msg.payload}"
+            )
             return
         logger.info(f"Received validation message on {msg.topic}: {msg.payload}")
         received_payload = msg.payload

@@ -20,6 +20,7 @@ Usage (replace ~20 lines of boilerplate with ~6)::
         install_quiet_exception_handler(logger)
         ...
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -30,9 +31,9 @@ from typing import Tuple
 
 # Resolve both source roots from this file's position in the repo tree:
 #   .../tinySOA/tests/system/_common.py
-_HERE = Path(__file__).resolve().parent                       # tests/system/
-_REPO_ROOT = _HERE.parents[1]                                 # .../tinySOA
-_TINYSOA_SRC = _REPO_ROOT / "src"                             # tinySOA/src
+_HERE = Path(__file__).resolve().parent  # tests/system/
+_REPO_ROOT = _HERE.parents[1]  # .../tinySOA
+_TINYSOA_SRC = _REPO_ROOT / "src"  # tinySOA/src
 # pysomeip is vendored as a git submodule under third_party/.
 _SOMEIP_SRC = _REPO_ROOT / "third_party" / "pysomeip" / "src"
 

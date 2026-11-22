@@ -14,12 +14,12 @@ Slow / real-network tests are SKIPPED by default (SD multicast is known to
 be saturated in the current development environment).  Remove the skip
 decorator to run them on a clean loopback.
 """
+
 from __future__ import annotations
 
 import sys
 
 import pytest
-
 
 # --------------------------------------------------------------------------- #
 # Fast: import smoke — all entry-point modules load cleanly.
@@ -37,7 +37,8 @@ _SOMEIP_EXAMPLE_MODS: tuple[str, ...] = (
 # Add the example dir to ``sys.path`` once so those relative imports resolve.
 _SOMEIP_EXAMPLE_DIR = str(
     __import__("pathlib").Path(__file__).resolve().parents[2]
-    / "examples" / "someip_multi_publishers"
+    / "examples"
+    / "someip_multi_publishers"
 )
 if _SOMEIP_EXAMPLE_DIR not in sys.path:
     sys.path.insert(0, _SOMEIP_EXAMPLE_DIR)
@@ -47,6 +48,7 @@ if _SOMEIP_EXAMPLE_DIR not in sys.path:
 def test_someip_example_module_imports_cleanly(modname: str) -> None:
     """Every SOME/IP example module imports without raising an exception."""
     import importlib
+
     importlib.import_module(modname)
 
 
@@ -54,10 +56,12 @@ def test_someip_example_module_imports_cleanly(modname: str) -> None:
 # Fast: wiring / configuration consistency for SENSORS & SENSOR_MAPPINGS.
 # --------------------------------------------------------------------------- #
 
+
 @pytest.fixture(scope="module")
 def _common() -> object:
     """Load ``_common`` once for the configuration-consistency tests."""
     from examples.someip_multi_publishers import _common as mod
+
     return mod
 
 
@@ -74,15 +78,16 @@ class TestSensorConfigIntegrity:
 
     def test_every_sensor_has_valid_mapping(self, _common) -> None:
         from tinysoa.eventbus.someip import SomeIPTopicMapping
+
         for key, sensor in _common.SENSORS.items():
-            assert isinstance(sensor.mapping, SomeIPTopicMapping), (
-                f"{key}: mapping is not a SomeIPTopicMapping"
-            )
+            assert isinstance(
+                sensor.mapping, SomeIPTopicMapping
+            ), f"{key}: mapping is not a SomeIPTopicMapping"
 
     @pytest.mark.parametrize("key", sorted(("temperature", "humidity", "pressure")))
     def test_sensor_has_required_fields(self, _common, key: str) -> None:
         sensor = _common.SENSORS[key]
-        assert sensor.service_id  > 0
+        assert sensor.service_id > 0
         assert sensor.publisher_port > 0
         assert sensor.topic
         assert sensor.unit
@@ -97,13 +102,14 @@ class TestTopicMappingConsistency:
     def test_each_topic_points_to_correct_service_id(self, _common) -> None:
         for key, sensor in _common.SENSORS.items():
             mapping = _common.SENSOR_MAPPINGS[sensor.topic]
-            assert mapping.service_id    == sensor.service_id
-            assert mapping.instance_id   == 0x0001
+            assert mapping.service_id == sensor.service_id
+            assert mapping.instance_id == 0x0001
 
     def test_instance_and_eventgroup_id_are_consistent(self, _common) -> None:
         from examples.someip_multi_publishers._common import EVENTGROUP_ID, INSTANCE_ID
+
         for mapping in _common.SENSOR_MAPPINGS.values():
-            assert mapping.instance_id   == INSTANCE_ID
+            assert mapping.instance_id == INSTANCE_ID
             assert mapping.eventgroup_id == EVENTGROUP_ID
 
 
@@ -117,7 +123,7 @@ class TestTopicMappingConsistency:
 # before running these.
 # --------------------------------------------------------------------------- #
 
-import platform as _platform
+import platform as _platform  # noqa: E402
 
 _WSL2 = "microsoft" in _platform.uname().release.lower()
 
@@ -129,28 +135,44 @@ class TestSomeIPSensorDelivery:
 
     def test_one_publisher_delivers_to_aggregator(self) -> None:
         """Temperature publisher (3 samples) should be received by aggregator."""
-        import subprocess, sys, tempfile, time
+        import subprocess
+        import sys
+        import tempfile
+        import time
+
         with tempfile.TemporaryDirectory() as td:
-            pub_log = f"{td}/pub.log"; sub_log = f"{td}/sub.log"
+            pub_log = f"{td}/pub.log"
+            sub_log = f"{td}/sub.log"
             pub = subprocess.Popen(
-                [sys.executable,
-                 "examples/someip_multi_publishers/publisher1_temperature.py",
-                 "--count", "3", "--interval", "0.5"],
-                stdout=open(pub_log, "w"), stderr=subprocess.STDOUT,
+                [
+                    sys.executable,
+                    "examples/someip_multi_publishers/publisher1_temperature.py",
+                    "--count",
+                    "3",
+                    "--interval",
+                    "0.5",
+                ],
+                stdout=open(pub_log, "w"),
+                stderr=subprocess.STDOUT,
                 cwd="examples/someip_multi_publishers",
             )
             time.sleep(1.5)  # let SD offer propagate
             sub = subprocess.Popen(
-                [sys.executable,
-                 "examples/someip_multi_publishers/subscriber_aggregator.py",
-                 "--count", "3"],
-                stdout=open(sub_log, "w"), stderr=subprocess.STDOUT,
+                [
+                    sys.executable,
+                    "examples/someip_multi_publishers/subscriber_aggregator.py",
+                    "--count",
+                    "3",
+                ],
+                stdout=open(sub_log, "w"),
+                stderr=subprocess.STDOUT,
                 cwd="examples/someip_multi_publishers",
             )
             try:
                 sub.wait(timeout=40)
             finally:
-                pub.terminate(); pub.wait(timeout=5)
+                pub.terminate()
+                pub.wait(timeout=5)
             out = open(sub_log).read()
             assert "aggregator stopped after" in out
             assert "received" in out.lower()

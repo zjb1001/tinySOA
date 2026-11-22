@@ -5,6 +5,7 @@ These IDs wire a tinySOA topic to a concrete SOME/IP service. The publisher and
 subscriber processes use the SAME mapping so the topic resolves to the same
 (service_id, instance_id, eventgroup_id) on both sides.
 """
+
 from __future__ import annotations
 
 import asyncio

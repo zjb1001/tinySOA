@@ -13,6 +13,7 @@ Run (from the ``tinySOA`` directory; start the TCP broker first):
 
 Exit code 0 on success, 1 if the broker is unreachable.
 """
+
 from __future__ import annotations
 
 import argparse

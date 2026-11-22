@@ -18,6 +18,7 @@
 3. 端口分配：``publisher_port=30900`` 是本文进程的 unicast 端口基址。
    SomeIPEventBus 内部会根据 service_id 计算出具体端口。
 """
+
 from __future__ import annotations
 
 import argparse
@@ -36,9 +37,10 @@ for _p in (str(_repo / "src"), str(_repo / "third_party" / "pysomeip" / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from tinysoa.eventbus.message import EventMessage
-from tinysoa.eventbus.someip import SomeIPEventBus
-from _common import LOCAL_IP, MAPPING, PUBLISHER_PORT, TOPIC
+from _common import LOCAL_IP, MAPPING, PUBLISHER_PORT, TOPIC  # noqa: E402
+
+from tinysoa.eventbus.message import EventMessage  # noqa: E402
+from tinysoa.eventbus.someip import SomeIPEventBus  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,7 +53,9 @@ logger = logging.getLogger("PUBLISHER")
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="SOME/IP Echo Publisher")
     p.add_argument("--count", type=int, default=5, help="messages to publish")
-    p.add_argument("--interval", type=float, default=1.0, help="seconds between messages")
+    p.add_argument(
+        "--interval", type=float, default=1.0, help="seconds between messages"
+    )
     return p.parse_args()
 
 
@@ -60,8 +64,13 @@ async def main() -> None:
     count = args.count
     interval = args.interval
 
-    logger.info("starting (svc=0x%04x, port=%d, %d msgs @ %.1fs)",
-                MAPPING.service_id, PUBLISHER_PORT, count, interval)
+    logger.info(
+        "starting (svc=0x%04x, port=%d, %d msgs @ %.1fs)",
+        MAPPING.service_id,
+        PUBLISHER_PORT,
+        count,
+        interval,
+    )
 
     # is_publisher=True → SD Offer 通告
     bus = SomeIPEventBus(

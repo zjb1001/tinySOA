@@ -4,6 +4,7 @@
   - publisher 通过 SD Offer 通告 (service_id=0x3333, instance=0x0001, eventgroup=0x0001)
   - subscriber 通过 SD Find 发现同一个服务
 """
+
 from tinysoa.eventbus.someip import SomeIPTopicMapping
 
 TOPIC = "echo.hello"

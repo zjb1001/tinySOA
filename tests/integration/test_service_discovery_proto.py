@@ -10,10 +10,11 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
-from someip.config import Eventgroup
-from someip.header import L4Protocols
-from someip.sd import ServiceDiscoveryProtocol, Timings
-from tinysoa.eventbus.someip import SomeIPSubscriber
+from someip.config import Eventgroup  # noqa: E402
+from someip.header import L4Protocols  # noqa: E402
+from someip.sd import ServiceDiscoveryProtocol, Timings  # noqa: E402
+
+from tinysoa.eventbus.someip import SomeIPSubscriber  # noqa: E402
 
 
 class _FakeTransport:
@@ -45,7 +46,9 @@ async def test_proto002_rxsd_uses_unicast_endpoint():
         return _FakeTransport(sockname), None
 
     loop = asyncio.get_event_loop()
-    with patch.object(loop, "create_datagram_endpoint", new=AsyncMock(side_effect=fake_cde)):
+    with patch.object(
+        loop, "create_datagram_endpoint", new=AsyncMock(side_effect=fake_cde)
+    ):
         await subscriber.subscribe(
             service_id=0x1234,
             instance_id=0x0001,
@@ -83,7 +86,9 @@ async def test_proto005_builds_sd_subscribe_entry():
         return _FakeTransport(("127.0.0.1", 40124)), None
 
     loop = asyncio.get_event_loop()
-    with patch.object(loop, "create_datagram_endpoint", new=AsyncMock(side_effect=fake_cde)):
+    with patch.object(
+        loop, "create_datagram_endpoint", new=AsyncMock(side_effect=fake_cde)
+    ):
         await subscriber.subscribe(
             service_id=0x2345,
             instance_id=0x0002,
@@ -130,7 +135,9 @@ async def test_proto006_allows_multiple_clients_subscribing_same_eventgroup():
         factory()
         return await transport_iter.__anext__()
 
-    with patch.object(loop, "create_datagram_endpoint", new=AsyncMock(side_effect=fake_cde)):
+    with patch.object(
+        loop, "create_datagram_endpoint", new=AsyncMock(side_effect=fake_cde)
+    ):
         subscriber_a = SomeIPSubscriber(local_addr="127.0.0.1", sd_protocol=sd_stub)
         subscriber_b = SomeIPSubscriber(local_addr="127.0.0.1", sd_protocol=sd_stub)
         await subscriber_a.start()

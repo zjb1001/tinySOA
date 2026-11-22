@@ -13,6 +13,7 @@ from source; run each script from this directory):
     export PYTHONPATH=$REPO/src:$REPO/tinySOA/src
     python publisher1_temperature.py     # or publisher2/3, subscriber_aggregator
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -154,7 +155,9 @@ SENSORS: Dict[str, SensorSpec] = {
 }
 
 #: topic -> SOME/IP mapping for EVERY sensor; the aggregator subscribes to all.
-SENSOR_MAPPINGS: Dict[str, SomeIPTopicMapping] = {s.topic: s.mapping for s in SENSORS.values()}
+SENSOR_MAPPINGS: Dict[str, SomeIPTopicMapping] = {
+    s.topic: s.mapping for s in SENSORS.values()
+}
 
 
 async def run_sensor_publisher(
@@ -180,7 +183,9 @@ async def run_sensor_publisher(
 
     mappings = {spec.topic: spec.mapping}
     # is_publisher defaults to True -> this process advertises the service via SD.
-    bus = SomeIPEventBus(mappings, local_ip=LOCAL_IP, publisher_port=spec.publisher_port)
+    bus = SomeIPEventBus(
+        mappings, local_ip=LOCAL_IP, publisher_port=spec.publisher_port
+    )
     period = spec.interval if interval is None else interval
 
     logger.info(

@@ -4,16 +4,22 @@ Verifies the non-centralized SOME/IP SD scenario where a subscriber sends SD Fin
 before the publisher is running; the publisher later announces via SD Offer and
 the subscriber discovers and receives.
 """
+
 from __future__ import annotations
 
 import asyncio
+import sys
 from datetime import datetime
 from pathlib import Path
-import sys
 
 # Make _common importable whether run as a bare script from this dir or via -m.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # -> system_tests/
-from _common import configure_logging, install_quiet_exception_handler, setup_path  # noqa: E402
+from _common import (
+    configure_logging,
+    install_quiet_exception_handler,
+    setup_path,
+)  # noqa: E402
+
 setup_path()  # -> adds tinysoa/src + pysomeip/src
 
 from tinysoa.eventbus.message import EventMessage  # noqa: E402
@@ -26,7 +32,9 @@ async def main() -> None:
     topic_a = "test.topic.a"
     mappings = {
         topic_a: SomeIPTopicMapping(
-            service_id=0x1234, instance_id=0x0001, eventgroup_id=0x0001,
+            service_id=0x1234,
+            instance_id=0x0001,
+            eventgroup_id=0x0001,
         ),
     }
 
@@ -35,13 +43,17 @@ async def main() -> None:
     # Publisher runs on a different loopback IP/port base to simulate a
     # separate ECU/process.  It starts AFTER the subscriber has already sent SD Find.
     bus = SomeIPEventBus(
-        mappings=mappings, local_ip="127.0.0.22", publisher_port=33020,
+        mappings=mappings,
+        local_ip="127.0.0.22",
+        publisher_port=33020,
     )
 
     await bus.start()
     logger.info("\n" + "=" * 70)
     logger.info("[PUBLISHER READY] Bus started on 127.0.0.22 (local service table)")
-    logger.info("[SD DISCOVERY] Listening for SD Find messages on multicast (224.224.224.245:30490)")
+    logger.info(
+        "[SD DISCOVERY] Listening for SD Find messages on multicast (224.224.224.245:30490)"
+    )
     logger.info("[ADVERTISING] Will announce Service=0x1234, Instance=0x0001")
     logger.info("=" * 70 + "\n")
     logger.info("Publisher bus started (AFTER subscriber)")

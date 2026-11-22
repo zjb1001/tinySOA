@@ -8,12 +8,16 @@ from pathlib import Path
 from typing import Dict, List
 
 # Add src to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../src")))
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../src"))
+)
 
-from tinysoa.eventbus.someip import SomeIPEventBus, SomeIPTopicMapping
 from tinysoa.eventbus.message import EventMessage
+from tinysoa.eventbus.someip import SomeIPEventBus, SomeIPTopicMapping
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("ST-009-SUB")
 
 
@@ -25,7 +29,9 @@ def install_quiet_exception_handler(loop: asyncio.AbstractEventLoop) -> None:
         if isinstance(exc, RuntimeError) and "task already stopped" in str(exc):
             logger.debug("Swallowing expected RuntimeError during shutdown: %s", exc)
             return
-        if isinstance(exc, AttributeError) and ("sendto" in str(exc) or "call_exception_handler" in str(exc)):
+        if isinstance(exc, AttributeError) and (
+            "sendto" in str(exc) or "call_exception_handler" in str(exc)
+        ):
             logger.debug("Swallowing expected AttributeError during shutdown: %s", exc)
             return
         default_handler(ctx)
@@ -51,7 +57,9 @@ def _derive_ids_for_topic(topic: str) -> tuple[int, int]:
         return (base_service, base_instance)
 
 
-async def run_subscriber(sub_id: int, topics: List[str], expected_per_topic: int, results_path: Path) -> None:
+async def run_subscriber(
+    sub_id: int, topics: List[str], expected_per_topic: int, results_path: Path
+) -> None:
     mappings: Dict[str, SomeIPTopicMapping] = {}
     for topic in topics:
         service_id, instance_id = _derive_ids_for_topic(topic)
@@ -66,7 +74,9 @@ async def run_subscriber(sub_id: int, topics: List[str], expected_per_topic: int
 
     # Use unique loopback IP per subscriber like ST-002
     local_ip = f"127.0.{150 + sub_id}.1"
-    bus = SomeIPEventBus(mappings=mappings, local_ip=local_ip, publisher_port=34000 + sub_id * 10)
+    bus = SomeIPEventBus(
+        mappings=mappings, local_ip=local_ip, publisher_port=34000 + sub_id * 10
+    )
 
     await bus.start()
     logger.info("Subscriber %s started on %s", sub_id, local_ip)
@@ -99,7 +109,9 @@ async def run_subscriber(sub_id: int, topics: List[str], expected_per_topic: int
 
     for t in topics:
         bus.subscribe(t, handler)
-    logger.info("Subscribed to %d topic(s); waiting for internal SD delay...", len(topics))
+    logger.info(
+        "Subscribed to %d topic(s); waiting for internal SD delay...", len(topics)
+    )
 
     try:
         # Allow up to generous timeout
@@ -135,7 +147,9 @@ async def main():
     topics_raw = os.environ.get("PERF_TOPICS", "perf.topic.shared")
     topics = [t.strip() for t in topics_raw.split(",") if t.strip()]
     expected_per_topic = int(os.environ.get("PERF_EXPECTED_PER_TOPIC", "1000"))
-    results_file = Path(os.environ.get("PERF_RESULTS_FILE", f"results/sub_{sub_id}.json"))
+    results_file = Path(
+        os.environ.get("PERF_RESULTS_FILE", f"results/sub_{sub_id}.json")
+    )
 
     await run_subscriber(sub_id, topics, expected_per_topic, results_file)
 

@@ -1,17 +1,19 @@
-import time
-import pytest
 import asyncio
 
+import pytest
+
+from tinysoa.policies.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerState,
+    CircuitOpenError,
+)
 from tinysoa.policies.retry import (
-    RetryPolicy,
     RetryError,
+    RetryPolicy,
     constant_backoff,
     linear_backoff,
-    exponential_backoff,
-    full_jitter,
 )
-from tinysoa.policies.timeout import TimeoutPolicy, TimeoutError
-from tinysoa.policies.circuit_breaker import CircuitBreaker, CircuitOpenError, CircuitBreakerState
+from tinysoa.policies.timeout import TimeoutError, TimeoutPolicy
 
 
 @pytest.mark.asyncio
@@ -72,7 +74,9 @@ async def test_retry_predicate():
             raise RuntimeError("stop here")
         return "ok"
 
-    policy = RetryPolicy(max_attempts=3, retry_on=should_retry, backoff=constant_backoff(0))
+    policy = RetryPolicy(
+        max_attempts=3, retry_on=should_retry, backoff=constant_backoff(0)
+    )
 
     with pytest.raises(RetryError):
         await policy.run(fn)
@@ -82,6 +86,8 @@ async def test_retry_predicate():
 def test_backoff_helpers():
     assert constant_backoff(0.5)(3) == 0.5
     assert linear_backoff(0.2)(3) == pytest.approx(0.6)
+
+
 @pytest.mark.asyncio
 async def test_timeout_policy_success():
     policy = TimeoutPolicy(timeout_seconds=1.0)
@@ -112,7 +118,9 @@ async def test_timeout_policy_timeout():
 
 @pytest.mark.asyncio
 async def test_circuit_breaker_trip_and_recover(monkeypatch):
-    cb = CircuitBreaker(failure_threshold=2, recovery_timeout=0.2, half_open_max_calls=1)
+    cb = CircuitBreaker(
+        failure_threshold=2, recovery_timeout=0.2, half_open_max_calls=1
+    )
 
     calls = {"count": 0}
 
@@ -147,7 +155,9 @@ async def test_circuit_breaker_trip_and_recover(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_circuit_breaker_half_open_failure():
-    cb = CircuitBreaker(failure_threshold=1, recovery_timeout=0.1, half_open_max_calls=1)
+    cb = CircuitBreaker(
+        failure_threshold=1, recovery_timeout=0.1, half_open_max_calls=1
+    )
 
     async def fail():
         raise RuntimeError("fail")

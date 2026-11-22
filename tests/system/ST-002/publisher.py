@@ -5,16 +5,23 @@ Run as its own OS process (together with ``run_test.py`` orchestrator).
 Run:
     python tests/system_tests/ST-002/publisher.py   # from repo root; _common adds paths
 """
+
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
-from pathlib import Path
 
 # Make _common importable whether run as a bare script from this dir or via -m.
 import sys
+from datetime import datetime
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # -> system_tests/
-from _common import configure_logging, install_quiet_exception_handler, setup_path  # noqa: E402
+from _common import (
+    configure_logging,
+    install_quiet_exception_handler,
+    setup_path,
+)  # noqa: E402
+
 setup_path()  # -> adds tinysoa/src + pysomeip/src
 
 from tinysoa.eventbus.message import EventMessage  # noqa: E402
@@ -31,12 +38,16 @@ async def main() -> None:
 
     mappings = {
         TEST_TOPIC: SomeIPTopicMapping(
-            service_id=0x1234, instance_id=0x0001, eventgroup_id=0x0001,
+            service_id=0x1234,
+            instance_id=0x0001,
+            eventgroup_id=0x0001,
         ),
     }
 
     bus = SomeIPEventBus(
-        mappings=mappings, local_ip="127.0.0.11", publisher_port=32010,
+        mappings=mappings,
+        local_ip="127.0.0.11",
+        publisher_port=32010,
     )
     await bus.start()
     logger.info("Publisher bus started")

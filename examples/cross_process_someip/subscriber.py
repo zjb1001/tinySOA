@@ -12,14 +12,12 @@ Run (from repo root, no install needed — both packages resolve from source):
 Exit code 0 if it received at least `want` (default 5) events, 1 otherwise.
 This exit code is what the orchestrator / pytest test asserts on.
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import sys
-
-from tinysoa.eventbus.message import EventMessage
-from tinysoa.eventbus.someip import SomeIPEventBus
 
 from examples.cross_process_someip import (
     LOCAL_IP,
@@ -28,6 +26,8 @@ from examples.cross_process_someip import (
     TOPIC,
     quiet_teardown,
 )
+from tinysoa.eventbus.message import EventMessage
+from tinysoa.eventbus.someip import SomeIPEventBus
 
 logging.basicConfig(
     level=logging.INFO,

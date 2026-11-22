@@ -1,10 +1,12 @@
+import logging
 import subprocess
 import sys
 import time
 from pathlib import Path
-import logging
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("ST-005-ORCH")
 
 
@@ -13,10 +15,10 @@ def run_subprocess(script: Path) -> subprocess.Popen:
 
 
 def main():
-    logger.info("="*70)
+    logger.info("=" * 70)
     logger.info("Starting ST-005 orchestrator (High Frequency Stress Test)")
-    logger.info("="*70)
-    
+    logger.info("=" * 70)
+
     base = Path(__file__).parent
     sub_script = base / "subscriber.py"
     pub_script = base / "publisher.py"
@@ -37,7 +39,7 @@ def main():
     # Step 4: Wait for both processes to complete
     logger.info("\n[STEP 3] Running stress test...")
     logger.info("         This may take 25-35 seconds...")
-    
+
     try:
         sub_rc = sub_proc.wait(timeout=50.0)
         logger.info("\nSubscriber completed with rc=%s", sub_rc)
@@ -63,15 +65,15 @@ def main():
         pub_rc = 1
 
     if sub_rc != 0 or pub_rc != 0:
-        logger.error("\n" + "="*70)
+        logger.error("\n" + "=" * 70)
         logger.error("FAILED: Subscriber rc=%s, Publisher rc=%s", sub_rc, pub_rc)
-        logger.error("="*70)
+        logger.error("=" * 70)
         sys.exit(1)
 
-    logger.info("\n" + "="*70)
+    logger.info("\n" + "=" * 70)
     logger.info("ST-005 orchestrator completed successfully")
     logger.info("High frequency stress test verified!")
-    logger.info("="*70)
+    logger.info("=" * 70)
 
 
 if __name__ == "__main__":

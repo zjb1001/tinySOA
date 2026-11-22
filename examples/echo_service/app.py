@@ -16,6 +16,7 @@ The demo is deterministic and self-contained (in-memory bus, no network): it
 starts the service, subscribes to the ``echo.said`` event, invokes the ``say``
 method once, prints the response and the delivered event, then shuts down.
 """
+
 from __future__ import annotations
 
 import asyncio

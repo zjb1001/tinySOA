@@ -22,6 +22,7 @@
 
 退出码 0 表示正常退出，1 表示参数错误或启动失败。
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,18 +33,17 @@ import sys
 import textwrap
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Sequence, Set, Tuple
+from typing import Dict, List, Optional, Sequence, Set
 
-from tinysoa.core.model import Service, Method, Event, Endpoint, ServiceStatus, Protocol
-from tinysoa.core.errors import DuplicateError, StateError, NotFoundError
-from tinysoa.eventbus import InMemoryEventBus, EventMessage, Subscription
+from tinysoa.core.errors import StateError
+from tinysoa.core.model import Endpoint, Event, Method, Protocol, Service, ServiceStatus
+from tinysoa.eventbus import EventMessage, InMemoryEventBus, Subscription
 from tinysoa.runtime.container import Container
 from tinysoa.runtime.lifecycle import (
-    LifecycleManager,
     HealthChecker,
     HealthCheckResult,
     HealthStatus,
-    DefaultHealthChecker,
+    LifecycleManager,
 )
 
 logger = logging.getLogger("tinysoa.example.vdp")
@@ -125,9 +125,9 @@ class VehicleDataPlatform:
     """
 
     container: Container = field(default_factory=Container)
-    lifecycle: LifecycleManager = field(default_factory=lambda: LifecycleManager(
-        Container(), VehicleHealthChecker()
-    ))
+    lifecycle: LifecycleManager = field(
+        default_factory=lambda: LifecycleManager(Container(), VehicleHealthChecker())
+    )
     event_bus: InMemoryEventBus = field(default_factory=InMemoryEventBus)
     services: Dict[int, Service] = field(default_factory=dict)
     _subscriptions: List[Subscription] = field(default_factory=list)
@@ -196,19 +196,25 @@ class VehicleDataPlatform:
         def on_start(svc: Service) -> None:
             logger.info(
                 "[AUDIT] Service started: name=%s id=%s version=%s endpoints=%d",
-                svc.name, hex(svc.id), svc.version, len(svc.endpoints),
+                svc.name,
+                hex(svc.id),
+                svc.version,
+                len(svc.endpoints),
             )
 
         def on_stop(svc: Service) -> None:
             logger.info(
                 "[AUDIT] Service stopped: name=%s id=%s status=%s",
-                svc.name, hex(svc.id), svc.status.value,
+                svc.name,
+                hex(svc.id),
+                svc.status.value,
             )
 
         def on_terminate(svc: Service) -> None:
             logger.info(
                 "[AUDIT] Service terminated: name=%s id=%s",
-                svc.name, hex(svc.id),
+                svc.name,
+                hex(svc.id),
             )
 
         self.lifecycle.add_on_start_hook(on_start)
@@ -280,19 +286,25 @@ class VehicleDataPlatform:
         rpm = 800  # 怠速
         temp = 85.0
 
-        logger.info("[Engine] started — publishing rpm_changed + temperature_changed every second")
+        logger.info(
+            "[Engine] started — publishing rpm_changed + temperature_changed every second"
+        )
         while not stop_event.is_set():
             rpm = max(600, min(7000, rpm + (50 if rpm < 2000 else -30)))
             temp = max(70.0, min(110.0, temp + (0.5 if temp < 95 else -0.3)))
 
-            await self.event_bus.publish(EventMessage(
-                topic=f"vehicle.{svc.name}.rpm_changed",
-                payload={"rpm": rpm, "unit": "rpm"},
-            ))
-            await self.event_bus.publish(EventMessage(
-                topic=f"vehicle.{svc.name}.temperature_changed",
-                payload={"temperature": round(temp, 1), "unit": "celsius"},
-            ))
+            await self.event_bus.publish(
+                EventMessage(
+                    topic=f"vehicle.{svc.name}.rpm_changed",
+                    payload={"rpm": rpm, "unit": "rpm"},
+                )
+            )
+            await self.event_bus.publish(
+                EventMessage(
+                    topic=f"vehicle.{svc.name}.temperature_changed",
+                    payload={"temperature": round(temp, 1), "unit": "celsius"},
+                )
+            )
             await asyncio.sleep(1.0)
 
     async def simulate_transmission(self, stop_event: asyncio.Event) -> None:
@@ -316,16 +328,20 @@ class VehicleDataPlatform:
                 new_gear = 5
             if new_gear != current_gear:
                 current_gear = new_gear
-                await self.event_bus.publish(EventMessage(
-                    topic=f"vehicle.{svc.name}.gear_changed",
-                    payload={"gear": current_gear, "rpm": rpm},
-                ))
+                await self.event_bus.publish(
+                    EventMessage(
+                        topic=f"vehicle.{svc.name}.gear_changed",
+                        payload={"gear": current_gear, "rpm": rpm},
+                    )
+                )
                 logger.debug("[Transmission] gear=%d @ rpm=%d", current_gear, rpm)
 
         sub = self.event_bus.subscribe("vehicle.EngineService.rpm_changed", on_rpm)
         self._subscriptions.append(sub)
 
-        logger.info("[Transmission] subscribed to EngineService.rpm_changed, computing gear")
+        logger.info(
+            "[Transmission] subscribed to EngineService.rpm_changed, computing gear"
+        )
         await stop_event.wait()
 
     async def simulate_dashboard(self, stop_event: asyncio.Event) -> None:
@@ -357,19 +373,22 @@ class VehicleDataPlatform:
 
     async def _update_display(self, state: Dict[str, object]) -> None:
         """仪表盘显示更新（模拟 CAN 总线上的仪表盘帧）。"""
-        await self.event_bus.publish(EventMessage(
-            topic="vehicle.DashboardService.display_updated",
-            payload={
-                "rpm": state["rpm"],
-                "temperature": state["temp"],
-                "gear": state["gear"],
-                "warning": state.get("temp", 0) > 100,
-            },
-        ))
+        await self.event_bus.publish(
+            EventMessage(
+                topic="vehicle.DashboardService.display_updated",
+                payload={
+                    "rpm": state["rpm"],
+                    "temperature": state["temp"],
+                    "gear": state["gear"],
+                    "warning": state.get("temp", 0) > 100,
+                },
+            )
+        )
 
-    async def simulate_diagnostics(self, stop_event: asyncio.Event, interval: float) -> None:
+    async def simulate_diagnostics(
+        self, stop_event: asyncio.Event, interval: float
+    ) -> None:
         """模拟诊断仪：定期检查所有服务健康状态。"""
-        svc = self.services[SVC_DIAGNOSTICS_ID]
         logger.info("[Diagnostics] started — health check every %.1fs", interval)
 
         while not stop_event.is_set():
@@ -381,16 +400,29 @@ class VehicleDataPlatform:
                 break  # stop_event was set
 
             report = self.lifecycle.check_all_health()
-            healthy = sum(1 for r in report.values() if r.status == HealthStatus.HEALTHY)
+            healthy = sum(
+                1 for r in report.values() if r.status == HealthStatus.HEALTHY
+            )
             total = len(report)
             logger.info(
-                "[Diagnostics] Health report: %d/%d healthy", healthy, total,
+                "[Diagnostics] Health report: %d/%d healthy",
+                healthy,
+                total,
             )
             for sid, result in report.items():
-                level = logging.INFO if result.status == HealthStatus.HEALTHY else logging.WARNING
-                logger.log(level, "  %s (0x%x): %s — %s",
-                           self.services[sid].name, sid,
-                           result.status.value, result.message)
+                level = (
+                    logging.INFO
+                    if result.status == HealthStatus.HEALTHY
+                    else logging.WARNING
+                )
+                logger.log(
+                    level,
+                    "  %s (0x%x): %s — %s",
+                    self.services[sid].name,
+                    sid,
+                    result.status.value,
+                    result.message,
+                )
 
     # ──────────────────────────────────────────────────────────────
     # 主运行循环
@@ -406,8 +438,12 @@ class VehicleDataPlatform:
         for svc in self.container.list_services():
             logger.info(
                 "  %s (0x%x) v%s | methods=%d events=%d endpoints=%d status=%s",
-                svc.name, svc.id, svc.version,
-                len(svc.methods), len(svc.events), len(svc.endpoints),
+                svc.name,
+                svc.id,
+                svc.version,
+                len(svc.methods),
+                len(svc.events),
+                len(svc.endpoints),
                 svc.status.value,
             )
 
@@ -418,9 +454,9 @@ class VehicleDataPlatform:
         # 3. 验证运行状态
         running = self.container.get_running_services()
         logger.info("Running services: %d/%d", len(running), len(self.services))
-        assert len(running) == len(self.services), (
-            f"Expected all {len(self.services)} services running, got {len(running)}"
-        )
+        assert len(running) == len(
+            self.services
+        ), f"Expected all {len(self.services)} services running, got {len(running)}"
 
         # 4. 启动业务协程
         stop_event = asyncio.Event()
@@ -459,9 +495,9 @@ class VehicleDataPlatform:
 
             # 7. 验证全部终止
             for svc in self.container.list_services():
-                assert svc.status == ServiceStatus.TERMINATED, (
-                    f"{svc.name} expected TERMINATED, got {svc.status.value}"
-                )
+                assert (
+                    svc.status == ServiceStatus.TERMINATED
+                ), f"{svc.name} expected TERMINATED, got {svc.status.value}"
 
         logger.info("=" * 60)
         logger.info("Vehicle Data Platform — shutdown complete")
@@ -486,19 +522,26 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         """),
     )
     parser.add_argument(
-        "--duration", type=float, default=10.0,
+        "--duration",
+        type=float,
+        default=10.0,
         help="平台运行时长，单位秒 (default: 10.0)",
     )
     parser.add_argument(
-        "--health-interval", type=float, default=2.0,
+        "--health-interval",
+        type=float,
+        default=2.0,
         help="诊断仪健康检查间隔，单位秒 (default: 2.0)",
     )
     parser.add_argument(
-        "--log-level", default="INFO", choices=_LOG_LEVELS,
+        "--log-level",
+        default="INFO",
+        choices=_LOG_LEVELS,
         help="日志级别 (default: INFO)",
     )
     parser.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run",
+        action="store_true",
         help="仅验证服务注册和拓扑排序，不实际运行",
     )
     return parser.parse_args(argv)
@@ -521,13 +564,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         for svc in svcs:
             deps = DEPENDENCY_GRAPH.get(svc.id, [])
             dep_names = [platform.services[d].name for d in deps] if deps else ["none"]
-            logger.info("  %s (0x%x) depends on: %s", svc.name, svc.id, ", ".join(dep_names))
+            logger.info(
+                "  %s (0x%x) depends on: %s", svc.name, svc.id, ", ".join(dep_names)
+            )
 
         order = platform._topological_order()
-        logger.info("Topological order: %s",
-                     " → ".join(platform.services[sid].name for sid in order))
-        logger.info("Reverse shutdown order: %s",
-                     " → ".join(platform.services[sid].name for sid in reversed(order)))
+        logger.info(
+            "Topological order: %s",
+            " → ".join(platform.services[sid].name for sid in order),
+        )
+        logger.info(
+            "Reverse shutdown order: %s",
+            " → ".join(platform.services[sid].name for sid in reversed(order)),
+        )
         return 0
 
     loop = asyncio.new_event_loop()

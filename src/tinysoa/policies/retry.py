@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import random
-from typing import Callable, Iterable, Optional, Type, Any, Awaitable
+from typing import Any, Awaitable, Callable, Iterable, Optional, Type
 
 
 class RetryError(Exception):
@@ -59,10 +59,13 @@ class RetryPolicy:
                     break
                 await self._sleep(attempt)
                 continue
-        raise RetryError(f"Retry attempts exhausted after {self.max_attempts}") from last_exc
+        raise RetryError(
+            f"Retry attempts exhausted after {self.max_attempts}"
+        ) from last_exc
 
 
 # Common backoff helpers
+
 
 def constant_backoff(seconds: float) -> Callable[[int], float]:
     return lambda attempt: seconds
@@ -72,12 +75,15 @@ def linear_backoff(base: float = 0.1) -> Callable[[int], float]:
     return lambda attempt: base * attempt
 
 
-def exponential_backoff(base: float = 0.1, factor: float = 2.0, max_delay: Optional[float] = None) -> Callable[[int], float]:
+def exponential_backoff(
+    base: float = 0.1, factor: float = 2.0, max_delay: Optional[float] = None
+) -> Callable[[int], float]:
     def backoff(attempt: int) -> float:
         delay = base * (factor ** (attempt - 1))
         if max_delay is not None:
             delay = min(delay, max_delay)
         return delay
+
     return backoff
 
 

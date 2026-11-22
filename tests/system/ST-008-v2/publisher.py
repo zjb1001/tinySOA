@@ -11,31 +11,35 @@ Subscribers: Call this method repeatedly from different processes
 
 import asyncio
 import logging
+import os
 import struct
 import sys
-import os
-import time
-from datetime import datetime
 
 # Add src to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../src")))
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../src")))
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../src"))
+)
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../src"))
+)
 
-from tinysoa.eventbus.someip import SomeIPEventBus, SomeIPTopicMapping
-from tinysoa.eventbus.message import EventMessage
 from someip.header import SOMEIPHeader
 
+from tinysoa.eventbus.message import EventMessage
+from tinysoa.eventbus.someip import SomeIPEventBus, SomeIPTopicMapping
+
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("ST-008-Pub-v2")
 
 
 def install_quiet_exception_handler(loop):
     """Suppress noisy task exception logs."""
+
     def handle_exception(args):
         pass
+
     loop.set_exception_handler(handle_exception)
 
 
@@ -44,7 +48,7 @@ def simple_add_handler(header: SOMEIPHeader, addr):
     if len(header.payload) != 8:
         logger.error(f"Invalid payload length: {len(header.payload)}")
         return None
-    
+
     try:
         a, b = struct.unpack("!II", header.payload)
         result = a + b
@@ -58,39 +62,34 @@ def simple_add_handler(header: SOMEIPHeader, addr):
 async def main():
     logger.info("=== ST-008 Publisher Process (v2) ===")
     logger.info(f"Process ID: {os.getpid()}")
-    
+
     # Dummy mapping to create service structure
     # We'll use methods, not eventgroups
     mappings = {
         "multiprocess.add": SomeIPTopicMapping(
-            service_id=0x0800,
-            instance_id=0x0001,
-            eventgroup_id=0x0001
+            service_id=0x0800, instance_id=0x0001, eventgroup_id=0x0001
         )
     }
-    
+
     loop = asyncio.get_running_loop()
     install_quiet_exception_handler(loop)
-    
+
     # Publisher mode with announcer for advertising methods
     bus = SomeIPEventBus(
-        mappings=mappings,
-        local_ip="127.0.0.1",
-        publisher_port=31000,
-        is_publisher=True
+        mappings=mappings, local_ip="127.0.0.1", publisher_port=31000, is_publisher=True
     )
-    
+
     await bus.start()
     logger.info("EventBus started on port 31000")
-    
+
     # Create a dummy publication to initialize the service
     await bus.publish(EventMessage(topic="multiprocess.add", payload="init"))
     logger.info("Service structure initialized")
-    
+
     # Get publisher and register method
     service_key = (0x0800, 0x0001)
     publisher = bus._publishers.get(service_key)
-    
+
     if publisher and publisher._service:
         publisher._service.register_method(0x0001, simple_add_handler)
         logger.info("Registered RPC method 0x0001 (simple_add)")
@@ -100,7 +99,7 @@ async def main():
         sys.exit(1)
 
     logger.info("Publisher ready. Waiting for RPC calls...")
-    
+
     try:
         while True:
             await asyncio.sleep(1)

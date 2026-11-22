@@ -3,11 +3,10 @@
 Fixtures defined here are auto-discovered by pytest and available to all
 test files under ``tests/``.
 """
+
 from __future__ import annotations
 
 import socket
-
-import pytest
 
 
 def pytest_configure(config) -> None:  # type: ignore[no-untyped-def]

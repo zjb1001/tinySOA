@@ -4,6 +4,7 @@ Server 和 Client 两个独立进程通过同一份配置找到彼此：
   - Server 通过 SD Offer 通告 service_id=0x4444，包含 3 个 method
   - Client 通过 SD Find 发现服务，发起 REQUEST 并等待 RESPONSE
 """
+
 from __future__ import annotations
 
 LOCAL_IP = "127.0.0.1"

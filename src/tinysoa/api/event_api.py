@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Callable, Mapping, Optional, Union, Any, Awaitable
+from typing import Any, Awaitable, Callable, Mapping, Optional, Union
 from uuid import UUID, uuid4
 
-from tinysoa.core.model import Service, Event, Message
+from tinysoa.core.model import Event, Message, Service
 
 ServiceSelector = Union[int, str, Service]
 EventSelector = Union[int, str, Event]

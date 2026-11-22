@@ -3,16 +3,21 @@
 Verifies the non-centralized discovery scenario where a subscriber starts first
 and waits for a late publisher to announce its service via SD.
 """
+
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Make _common importable whether run as a bare script from this dir or via -m.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # -> system_tests/
-from _common import configure_logging, install_quiet_exception_handler, setup_path  # noqa: E402
+from _common import (
+    configure_logging,
+    install_quiet_exception_handler,
+    setup_path,
+)  # noqa: E402
+
 setup_path()  # -> adds tinysoa/src + pysomeip/src
 
 from tinysoa.eventbus.message import EventMessage  # noqa: E402
@@ -25,7 +30,9 @@ async def main() -> None:
     topic_a = "test.topic.a"
     mappings = {
         topic_a: SomeIPTopicMapping(
-            service_id=0x1234, instance_id=0x0001, eventgroup_id=0x0001,
+            service_id=0x1234,
+            instance_id=0x0001,
+            eventgroup_id=0x0001,
         ),
     }
 
@@ -33,7 +40,9 @@ async def main() -> None:
 
     # Subscriber on its own loopback IP/port to simulate a separate ECU.
     bus = SomeIPEventBus(
-        mappings=mappings, local_ip="127.0.0.21", publisher_port=33010,
+        mappings=mappings,
+        local_ip="127.0.0.21",
+        publisher_port=33010,
     )
 
     await bus.start()
@@ -60,7 +69,9 @@ async def main() -> None:
     logger.info("\n" + "=" * 70)
     logger.info("[LOCAL SERVICE TABLE] Subscriber registered for topic: %s", topic_a)
     logger.info("[SD DISCOVERY] Will send SD Find on multicast (224.224.224.245:30490)")
-    logger.info("[SD DISCOVERY] Looking for Service=0x1234, Instance=0x0001, Eventgroup=0x0001")
+    logger.info(
+        "[SD DISCOVERY] Looking for Service=0x1234, Instance=0x0001, Eventgroup=0x0001"
+    )
     logger.info("[WAITING] Publisher to appear and send SD Offer...")
     logger.info("=" * 70 + "\n")
 

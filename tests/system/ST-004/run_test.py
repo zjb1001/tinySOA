@@ -1,11 +1,12 @@
+import logging
 import subprocess
 import sys
 import time
 from pathlib import Path
-import signal
-import logging
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("ST-004-ORCH")
 
 
@@ -14,10 +15,10 @@ def run_subprocess(script: Path) -> subprocess.Popen:
 
 
 def main():
-    logger.info("="*70)
+    logger.info("=" * 70)
     logger.info("Starting ST-004 orchestrator (Service Restart Resilience)")
-    logger.info("="*70)
-    
+    logger.info("=" * 70)
+
     base = Path(__file__).parent
     sub_script = base / "subscriber.py"
     pub_script = base / "publisher.py"
@@ -41,7 +42,7 @@ def main():
     # Step 5: Simulate publisher crash by terminating process
     logger.info("\n[STEP 3] Simulating publisher crash (SIGTERM)...")
     pub_proc.terminate()
-    
+
     # Wait for process to terminate
     try:
         pub_proc.wait(timeout=3.0)
@@ -62,7 +63,7 @@ def main():
 
     # Step 8: Wait for both processes to complete
     logger.info("\n[STEP 6] Waiting for subscriber and publisher to complete...")
-    
+
     try:
         sub_rc = sub_proc.wait(timeout=40.0)
         logger.info("\nSubscriber completed with rc=%s", sub_rc)
@@ -80,15 +81,15 @@ def main():
         pub_rc = pub_proc.wait()
 
     if sub_rc != 0 or pub_rc != 0:
-        logger.error("\n" + "="*70)
+        logger.error("\n" + "=" * 70)
         logger.error("FAILED: Subscriber rc=%s, Publisher rc=%s", sub_rc, pub_rc)
-        logger.error("="*70)
+        logger.error("=" * 70)
         sys.exit(1)
 
-    logger.info("\n" + "="*70)
+    logger.info("\n" + "=" * 70)
     logger.info("ST-004 orchestrator completed successfully")
     logger.info("Service restart resilience verified!")
-    logger.info("="*70)
+    logger.info("=" * 70)
 
 
 if __name__ == "__main__":

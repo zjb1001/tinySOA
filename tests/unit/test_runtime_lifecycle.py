@@ -1,14 +1,12 @@
 import pytest
 
-from tinysoa.core.model import Service, Method, Event, ServiceStatus
-from tinysoa.core.errors import DuplicateError, StateError
+from tinysoa.core.errors import DuplicateError
+from tinysoa.core.model import Method, Service, ServiceStatus
 from tinysoa.runtime.container import Container
 from tinysoa.runtime.lifecycle import (
-    LifecycleManager,
-    HealthChecker,
-    HealthStatus,
-    HealthCheckResult,
     DefaultHealthChecker,
+    HealthStatus,
+    LifecycleManager,
 )
 
 

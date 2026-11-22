@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Iterable, Mapping, Optional, Union, Any
+from typing import Any, Iterable, Mapping, Optional, Union
 
-from tinysoa.core.model import Service, Method, Message
+from tinysoa.core.model import Message, Method, Service
 
 ServiceSelector = Union[int, str, Service]
 MethodSelector = Union[int, str, Method]

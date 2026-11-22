@@ -7,6 +7,6 @@ __all__ = [
     "CircuitOpenError",
 ]
 
-from .retry import RetryPolicy, RetryError
-from .timeout import TimeoutPolicy, TimeoutError
 from .circuit_breaker import CircuitBreaker, CircuitOpenError
+from .retry import RetryError, RetryPolicy
+from .timeout import TimeoutError, TimeoutPolicy

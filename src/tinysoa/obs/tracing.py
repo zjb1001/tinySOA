@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
-from uuid import UUID, uuid4
 from threading import Lock
+from typing import Any, Dict, List, Optional
+from uuid import UUID, uuid4
 
 from tinysoa.spi.interceptor import Interceptor, InvocationContext, Invoker
 
@@ -12,7 +12,7 @@ from tinysoa.spi.interceptor import Interceptor, InvocationContext, Invoker
 @dataclass
 class Span:
     """Represents a span in distributed tracing."""
-    
+
     trace_id: UUID
     span_id: UUID
     parent_span_id: Optional[UUID] = None
@@ -23,12 +23,12 @@ class Span:
     tags: Dict[str, Any] = field(default_factory=dict)
     logs: List[Dict[str, Any]] = field(default_factory=list)
     status: str = "ok"  # ok, error
-    
+
     def finish(self, status: str = "ok") -> None:
         """Mark the span as finished."""
         self.end_time = datetime.now(timezone.utc)
         self.status = status
-    
+
     @property
     def duration_ms(self) -> Optional[float]:
         """Get span duration in milliseconds."""
@@ -36,11 +36,11 @@ class Span:
             delta = self.end_time - self.start_time
             return delta.total_seconds() * 1000
         return None
-    
+
     def set_tag(self, key: str, value: Any) -> None:
         """Set a tag on the span."""
         self.tags[key] = value
-    
+
     def log_event(self, event: str, **kwargs) -> None:
         """Log an event in the span."""
         log_entry = {
@@ -49,7 +49,7 @@ class Span:
             **kwargs,
         }
         self.logs.append(log_entry)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert span to dictionary for export."""
         return {
@@ -63,8 +63,7 @@ class Span:
             "duration_ms": self.duration_ms,
             "tags": self.tags,
             "logs": [
-                {**log, "timestamp": log["timestamp"].isoformat()}
-                for log in self.logs
+                {**log, "timestamp": log["timestamp"].isoformat()} for log in self.logs
             ],
             "status": self.status,
         }
@@ -72,12 +71,12 @@ class Span:
 
 class TracingContext:
     """Manages tracing context and span hierarchy."""
-    
+
     def __init__(self, trace_id: Optional[UUID] = None):
         self.trace_id = trace_id or uuid4()
         self._spans: List[Span] = []
         self._active_span: Optional[Span] = None
-    
+
     def start_span(
         self,
         operation_name: str,
@@ -86,7 +85,7 @@ class TracingContext:
     ) -> Span:
         """Start a new span."""
         parent_span_id = parent_span.span_id if parent_span else None
-        
+
         span = Span(
             trace_id=self.trace_id,
             span_id=uuid4(),
@@ -94,16 +93,16 @@ class TracingContext:
             operation_name=operation_name,
             service_name=service_name,
         )
-        
+
         self._spans.append(span)
         self._active_span = span
-        
+
         return span
-    
+
     def finish_span(self, span: Span, status: str = "ok") -> None:
         """Finish a span."""
         span.finish(status)
-        
+
         # Set active span to parent if exists
         if span.parent_span_id:
             for s in self._spans:
@@ -112,15 +111,15 @@ class TracingContext:
                     break
         else:
             self._active_span = None
-    
+
     def get_active_span(self) -> Optional[Span]:
         """Get the currently active span."""
         return self._active_span
-    
+
     def get_all_spans(self) -> List[Span]:
         """Get all spans in this trace."""
         return list(self._spans)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Export trace to dictionary."""
         return {
@@ -131,17 +130,19 @@ class TracingContext:
 
 class TracingInterceptor(Interceptor):
     """Interceptor that adds distributed tracing to service calls."""
-    
+
     def __init__(self, priority: int = 15):
         self._priority = priority
         self.traces: Dict[UUID, TracingContext] = {}
         self._lock = Lock()
-    
+
     @property
     def priority(self) -> int:
         return self._priority
-    
-    async def intercept(self, context: InvocationContext, next_invoker: Invoker) -> None:
+
+    async def intercept(
+        self, context: InvocationContext, next_invoker: Invoker
+    ) -> None:
         """Intercept and add tracing."""
         # Get or create tracing context
         trace_id = context.metadata.get("trace_id")
@@ -154,10 +155,10 @@ class TracingInterceptor(Interceptor):
             tracing_ctx = TracingContext()
             context.metadata["trace_id"] = tracing_ctx.trace_id
             self.traces[tracing_ctx.trace_id] = tracing_ctx
-        
+
         # Get parent span if exists
         parent_span = tracing_ctx.get_active_span()
-        
+
         # Start a new span for this invocation
         operation_name = f"{context.service.name}.{context.method.name}"
         span = tracing_ctx.start_span(
@@ -165,20 +166,20 @@ class TracingInterceptor(Interceptor):
             service_name=context.service.name,
             parent_span=parent_span,
         )
-        
+
         # Add tags
         span.set_tag("service.name", context.service.name)
         span.set_tag("service.version", context.service.version)
         span.set_tag("method.name", context.method.name)
         span.set_tag("method.id", context.method.id)
-        
+
         # Store span in context metadata
         context.metadata["span"] = span
-        
+
         try:
             # Call next in chain
             await next_invoker(context)
-            
+
             # Check for errors
             if context.error:
                 span.set_tag("error", True)
@@ -191,15 +192,15 @@ class TracingInterceptor(Interceptor):
             span.log_event("error", message=str(e))
             tracing_ctx.finish_span(span, status="error")
             raise
-    
+
     def get_trace(self, trace_id: UUID) -> Optional[TracingContext]:
         """Get a trace by ID."""
         return self.traces.get(trace_id)
-    
+
     def get_all_traces(self) -> List[TracingContext]:
         """Get all traces."""
         return list(self.traces.values())
-    
+
     def clear_traces(self) -> None:
         """Clear all stored traces."""
         with self._lock:

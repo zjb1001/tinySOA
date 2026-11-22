@@ -15,6 +15,7 @@
 
 退出码 0 正常；1 服务未发现或调用超时。
 """
+
 from __future__ import annotations
 
 import argparse
@@ -33,22 +34,21 @@ for _p in (str(_repo / "src"), str(_repo / "third_party" / "pysomeip" / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import someip.header as hdr
-from someip.sd import (
-    ServiceDiscoveryProtocol,
-    SOMEIPDatagramProtocol,
-    DatagramProtocolAdapter,
-    ClientServiceListener,
-)
-from someip.config import Service as SomeIPServiceConfig
-
-from _common import (
-    LOCAL_IP,
+import someip.header as hdr  # noqa: E402
+from _common import (  # noqa: E402
     CLIENT_PORT,
-    SERVICE_ID,
     INSTANCE_ID,
+    LOCAL_IP,
     MAJOR_VERSION,
     METHODS,
+    SERVICE_ID,
+)
+from someip.config import Service as SomeIPServiceConfig  # noqa: E402
+from someip.sd import (  # noqa: E402
+    ClientServiceListener,
+    DatagramProtocolAdapter,
+    ServiceDiscoveryProtocol,
+    SOMEIPDatagramProtocol,
 )
 
 logger = logging.getLogger("calc.client")
@@ -107,7 +107,9 @@ class CalculatorRpcClient(SOMEIPDatagramProtocol):
         future: asyncio.Future[bytes] = asyncio.get_event_loop().create_future()
         self._pending[session_id] = future
 
-        logger.debug("SEND    method=0x%04x session=0x%04x → %r", method_id, session_id, addr)
+        logger.debug(
+            "SEND    method=0x%04x session=0x%04x → %r", method_id, session_id, addr
+        )
         self.send(request.build(), addr)
 
         try:
@@ -131,20 +133,28 @@ class CalculatorRpcClient(SOMEIPDatagramProtocol):
         future = self._pending.get(sid)
 
         if future is None or future.done():
-            logger.debug("RECV unmatched session=0x%04x type=%s", sid,
-                         someip_message.message_type.name)
+            logger.debug(
+                "RECV unmatched session=0x%04x type=%s",
+                sid,
+                someip_message.message_type.name,
+            )
             return
 
         if someip_message.message_type == hdr.SOMEIPMessageType.RESPONSE:
-            logger.debug("RECV   RESPONSE session=0x%04x payload=%r", sid, someip_message.payload)
+            logger.debug(
+                "RECV   RESPONSE session=0x%04x payload=%r", sid, someip_message.payload
+            )
             future.set_result(someip_message.payload)
         elif someip_message.message_type == hdr.SOMEIPMessageType.ERROR:
             rc = someip_message.return_code
             logger.warning("RECV   ERROR session=0x%04x return_code=%s", sid, rc.name)
             future.set_exception(RuntimeError(f"SOME/IP error: {rc.name}"))
         else:
-            logger.debug("RECV unexpected type=%s session=0x%04x",
-                         someip_message.message_type.name, sid)
+            logger.debug(
+                "RECV unexpected type=%s session=0x%04x",
+                someip_message.message_type.name,
+                sid,
+            )
 
 
 # ── Service Discovery Watcher ────────────────────────────────────────
@@ -202,17 +212,26 @@ class ServiceWatcher(ClientServiceListener):
 _LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 
 TEST_CASES = [
-    ("add",      {"a": 10, "b": 7},   17),
-    ("subtract", {"a": 50, "b": 18},  32),
-    ("multiply", {"a": 6,  "b": 8},   48),
+    ("add", {"a": 10, "b": 7}, 17),
+    ("subtract", {"a": 50, "b": 18}, 32),
+    ("multiply", {"a": 6, "b": 8}, 48),
 ]
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="SOME/IP Calculator Client")
-    parser.add_argument("--host", default=LOCAL_IP, help=f"local bind address (default: {LOCAL_IP})")
-    parser.add_argument("--port", type=int, default=CLIENT_PORT, help=f"local unicast port (default: {CLIENT_PORT})")
-    parser.add_argument("--log-level", default="INFO", choices=_LOG_LEVELS, help="logging verbosity")
+    parser.add_argument(
+        "--host", default=LOCAL_IP, help=f"local bind address (default: {LOCAL_IP})"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=CLIENT_PORT,
+        help=f"local unicast port (default: {CLIENT_PORT})",
+    )
+    parser.add_argument(
+        "--log-level", default="INFO", choices=_LOG_LEVELS, help="logging verbosity"
+    )
     return parser.parse_args(argv)
 
 
@@ -281,7 +300,12 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
 
             logger.info(
                 "%s  %s(%s) = %s  (expected %s)  %.1fms",
-                status, method_name, operands, actual, expected, elapsed * 1000,
+                status,
+                method_name,
+                operands,
+                actual,
+                expected,
+                elapsed * 1000,
             )
         except asyncio.TimeoutError:
             failed += 1
@@ -291,7 +315,9 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
             logger.error("ERROR  %s(%s) — %s", method_name, operands, exc)
 
     logger.info("=" * 50)
-    logger.info("Results: %d passed, %d failed, %d total", passed, failed, passed + failed)
+    logger.info(
+        "Results: %d passed, %d failed, %d total", passed, failed, passed + failed
+    )
 
     # 5. 清理
     sd_prot.stop()

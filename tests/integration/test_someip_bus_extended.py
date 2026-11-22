@@ -4,13 +4,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from tinysoa.eventbus.message import EventMessage
-from tinysoa.eventbus.someip import SomeIPEventBus, SomeIPTopicMapping, SomeIPPublisher
+from tinysoa.eventbus.someip import SomeIPEventBus, SomeIPPublisher, SomeIPTopicMapping
 
 
 @pytest.mark.asyncio
 async def test_publish_triggers_start_and_notify():
     mappings = {
-        "sensor.temp": SomeIPTopicMapping(service_id=0x1001, instance_id=0x0001, eventgroup_id=0x000A)
+        "sensor.temp": SomeIPTopicMapping(
+            service_id=0x1001, instance_id=0x0001, eventgroup_id=0x000A
+        )
     }
     bus = SomeIPEventBus(mappings, local_ip="127.0.0.1", publisher_port=30500)
     bus._started = True
@@ -18,8 +20,11 @@ async def test_publish_triggers_start_and_notify():
     msg = EventMessage(topic="sensor.temp", payload={"t": 25.5})
 
     # Patch SomeIPPublisher.start and notify
-    with patch.object(SomeIPPublisher, "start", new=AsyncMock()) as mock_start, \
-         patch.object(SomeIPPublisher, "notify", new=AsyncMock()) as mock_notify:
+    with patch.object(
+        SomeIPPublisher, "start", new=AsyncMock()
+    ) as mock_start, patch.object(
+        SomeIPPublisher, "notify", new=AsyncMock()
+    ) as mock_notify:
         await bus.publish(msg)
 
         # Publisher created and started once; notify called with encoded payload
@@ -34,7 +39,9 @@ async def test_publish_triggers_start_and_notify():
 @pytest.mark.asyncio
 async def test_subscribe_dispatches_on_notification_to_handlers():
     mappings = {
-        "sensor.humidity": SomeIPTopicMapping(service_id=0x1002, instance_id=0x0002, eventgroup_id=0x000B)
+        "sensor.humidity": SomeIPTopicMapping(
+            service_id=0x1002, instance_id=0x0002, eventgroup_id=0x000B
+        )
     }
     bus = SomeIPEventBus(mappings)
     bus._started = True
@@ -42,7 +49,9 @@ async def test_subscribe_dispatches_on_notification_to_handlers():
     # Fake subscriber to capture on_notification closure
     captured_handler = {}
 
-    async def fake_subscribe(service_id, instance_id, eventgroup_id, major_version, on_notification):
+    async def fake_subscribe(
+        service_id, instance_id, eventgroup_id, major_version, on_notification
+    ):
         captured_handler[(service_id, instance_id, eventgroup_id)] = on_notification
 
     bus._subscriber = MagicMock()
@@ -60,10 +69,12 @@ async def test_subscribe_dispatches_on_notification_to_handlers():
         await bus._start_subscription(mapping, "sensor.humidity", seq_num=0)
 
     # Register local handler
-    sub = bus.subscribe("sensor.humidity", handler)
+    bus.subscribe("sensor.humidity", handler)
 
     # Simulate an incoming SOME/IP notification
-    payload = bus._serialize_message(EventMessage(topic="sensor.humidity", payload={"h": 45}))
+    payload = bus._serialize_message(
+        EventMessage(topic="sensor.humidity", payload={"h": 45})
+    )
     key = (mapping.service_id, mapping.instance_id, mapping.eventgroup_id)
     assert key in captured_handler
 
@@ -77,7 +88,9 @@ async def test_subscribe_dispatches_on_notification_to_handlers():
 @pytest.mark.asyncio
 async def test_unsubscribe_triggers_stop_subscription_when_last_subscriber_removed():
     mappings = {
-        "sensor.pressure": SomeIPTopicMapping(service_id=0x1003, instance_id=0x0003, eventgroup_id=0x000C)
+        "sensor.pressure": SomeIPTopicMapping(
+            service_id=0x1003, instance_id=0x0003, eventgroup_id=0x000C
+        )
     }
     bus = SomeIPEventBus(mappings)
     bus._started = True
@@ -87,7 +100,9 @@ async def test_unsubscribe_triggers_stop_subscription_when_last_subscriber_remov
         pass
 
     # Patch _stop_subscription to observe invocation
-    with patch.object(SomeIPEventBus, "_stop_subscription", new=AsyncMock()) as mock_stop:
+    with patch.object(
+        SomeIPEventBus, "_stop_subscription", new=AsyncMock()
+    ) as mock_stop:
         sub = bus.subscribe("sensor.pressure", dummy_handler)
         assert bus.get_subscribers_count("sensor.pressure") == 1
         bus.unsubscribe(sub)
@@ -99,9 +114,15 @@ async def test_unsubscribe_triggers_stop_subscription_when_last_subscriber_remov
 
 def test_service_port_allocation_uniqueness():
     mappings = {
-        "topic.a": SomeIPTopicMapping(service_id=0x2001, instance_id=0x0001, eventgroup_id=0x0010),
-        "topic.b": SomeIPTopicMapping(service_id=0x2001, instance_id=0x0001, eventgroup_id=0x0011),
-        "topic.c": SomeIPTopicMapping(service_id=0x2001, instance_id=0x0002, eventgroup_id=0x0012),
+        "topic.a": SomeIPTopicMapping(
+            service_id=0x2001, instance_id=0x0001, eventgroup_id=0x0010
+        ),
+        "topic.b": SomeIPTopicMapping(
+            service_id=0x2001, instance_id=0x0001, eventgroup_id=0x0011
+        ),
+        "topic.c": SomeIPTopicMapping(
+            service_id=0x2001, instance_id=0x0002, eventgroup_id=0x0012
+        ),
     }
     bus = SomeIPEventBus(mappings, publisher_port=30600)
 

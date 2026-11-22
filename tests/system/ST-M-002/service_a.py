@@ -8,6 +8,7 @@ Run as its own OS process after Service B and Service C are running.
 Run:
     python tests/system_tests/ST-M-002/service_a.py   # from repo root; _common adds paths
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -19,6 +20,7 @@ from typing import Optional
 # Make _common importable whether run as a bare script from this dir or via -m.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # -> system_tests/
 from _common import configure_logging, setup_path  # noqa: E402
+
 setup_path()  # -> adds tinysoa/src + pysomeip/src
 
 from someip.header import (  # noqa: E402
@@ -26,7 +28,7 @@ from someip.header import (  # noqa: E402
     SOMEIPMessageType,
     SOMEIPReturnCode,
 )
-from someip.sd import SOMEIPDatagramProtocol, DatagramProtocolAdapter  # noqa: E402
+from someip.sd import DatagramProtocolAdapter, SOMEIPDatagramProtocol  # noqa: E402
 
 logger = configure_logging("ST-M-002-ServiceA")
 

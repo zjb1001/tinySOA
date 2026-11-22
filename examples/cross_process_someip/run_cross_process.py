@@ -16,6 +16,7 @@ Run from anywhere:
 
 Exit code 0 on success, 1 on failure.
 """
+
 from __future__ import annotations
 
 import os
@@ -27,15 +28,13 @@ from pathlib import Path
 # --- locate the repo + source roots relative to this file -------------------
 # .../tinySOA/examples/cross_process_someip/run_cross_process.py
 HERE = Path(__file__).resolve().parent
-TINYSOA_DIR = HERE.parents[1]            # .../tinySOA (repo root)
-TINYSOA_SRC = TINYSOA_DIR / "src"        # tinysoa package source
+TINYSOA_DIR = HERE.parents[1]  # .../tinySOA (repo root)
+TINYSOA_SRC = TINYSOA_DIR / "src"  # tinysoa package source
 # pysomeip is vendored as a git submodule under third_party/.
 SOMEIP_SRC = TINYSOA_DIR / "third_party" / "pysomeip" / "src"
 
 # Both packages must be importable from source, no install.
-ENV_PYTHONPATH = os.pathsep.join(
-    p for p in (str(SOMEIP_SRC), str(TINYSOA_SRC)) if p
-)
+ENV_PYTHONPATH = os.pathsep.join(p for p in (str(SOMEIP_SRC), str(TINYSOA_SRC)) if p)
 # `examples.cross_process_someip.*` resolves with cwd = tinySOA dir.
 ENV = {**os.environ, "PYTHONPATH": ENV_PYTHONPATH}
 
@@ -43,7 +42,12 @@ ENV = {**os.environ, "PYTHONPATH": ENV_PYTHONPATH}
 def _spawn(module: str, *args: str) -> subprocess.Popen:
     """Spawn a tinySOA example module as its own OS process."""
     return subprocess.Popen(
-        [sys.executable, "-m", f"examples.cross_process_someip.{module}", *map(str, args)],
+        [
+            sys.executable,
+            "-m",
+            f"examples.cross_process_someip.{module}",
+            *map(str, args),
+        ],
         cwd=str(TINYSOA_DIR),
         env=ENV,
         stdout=subprocess.PIPE,

@@ -14,6 +14,7 @@ directory):
 
 Exit code 0 on clean shutdown.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -24,15 +25,23 @@ from _common import LOG_LEVELS, SENSORS, run_sensor_publisher
 
 
 def parse_args(argv=None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="tinySOA SOME/IP temperature publisher")
+    parser = argparse.ArgumentParser(
+        description="tinySOA SOME/IP temperature publisher"
+    )
     parser.add_argument(
         "--count", type=int, default=0, help="samples to send; 0 = forever (default: 0)"
     )
     parser.add_argument(
-        "--interval", type=float, default=None, help="seconds between samples (default: spec)"
+        "--interval",
+        type=float,
+        default=None,
+        help="seconds between samples (default: spec)",
     )
     parser.add_argument(
-        "--log-level", default="INFO", choices=LOG_LEVELS, help="logging verbosity (default: INFO)"
+        "--log-level",
+        default="INFO",
+        choices=LOG_LEVELS,
+        help="logging verbosity (default: INFO)",
     )
     return parser.parse_args(argv)
 

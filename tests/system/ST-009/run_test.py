@@ -1,13 +1,13 @@
 import json
+import logging
 import subprocess
 import sys
 import time
 from pathlib import Path
-from statistics import median
 
-import logging
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("ST-009-ORCH")
 
 BASE = Path(__file__).parent
@@ -18,11 +18,14 @@ RESULTS_DIR = BASE / "results"
 
 def run_proc(script: Path, env: dict) -> subprocess.Popen:
     new_env = {**os_environ_clean(), **env}
-    return subprocess.Popen([sys.executable, str(script)], cwd=script.parent, env=new_env)
+    return subprocess.Popen(
+        [sys.executable, str(script)], cwd=script.parent, env=new_env
+    )
 
 
 def os_environ_clean():
     import os
+
     # Avoid leaking virtualenv variables that could break networking
     env = dict(os.environ)
     return env
@@ -90,7 +93,13 @@ def scenario_1_pub_1_sub(messages=1000):
     assert sub_rc == 0 and pub_rc == 0, f"Processes failed: sub={sub_rc} pub={pub_rc}"
 
     agg = aggregate_results([RESULTS_DIR / "1x1_sub.json"])
-    logger.info("1x1: msgs=%s, thr=%.1f msg/s, p95=%.2fms, p99=%.2fms", agg["total_messages"], agg["throughput_msg_per_s"], agg["p95_ms"], agg["p99_ms"])
+    logger.info(
+        "1x1: msgs=%s, thr=%.1f msg/s, p95=%.2fms, p99=%.2fms",
+        agg["total_messages"],
+        agg["throughput_msg_per_s"],
+        agg["p95_ms"],
+        agg["p99_ms"],
+    )
     return agg
 
 
@@ -122,7 +131,13 @@ def scenario_1_pub_10_subs(messages=500):
 
     files = [RESULTS_DIR / f"1x10_sub_{sid}.json" for sid in range(10)]
     agg = aggregate_results(files)
-    logger.info("1x10: msgs=%s, thr=%.1f msg/s, p95=%.2fms, p99=%.2fms", agg["total_messages"], agg["throughput_msg_per_s"], agg["p95_ms"], agg["p99_ms"])
+    logger.info(
+        "1x10: msgs=%s, thr=%.1f msg/s, p95=%.2fms, p99=%.2fms",
+        agg["total_messages"],
+        agg["throughput_msg_per_s"],
+        agg["p95_ms"],
+        agg["p99_ms"],
+    )
     return agg
 
 
@@ -156,7 +171,13 @@ def scenario_10_pub_1_sub(messages_per_pub=100):
         assert p.wait(timeout=90.0) == 0
 
     agg = aggregate_results([RESULTS_DIR / "10x1_sub.json"])
-    logger.info("10x1: msgs=%s, thr=%.1f msg/s, p95=%.2fms, p99=%.2fms", agg["total_messages"], agg["throughput_msg_per_s"], agg["p95_ms"], agg["p99_ms"])
+    logger.info(
+        "10x1: msgs=%s, thr=%.1f msg/s, p95=%.2fms, p99=%.2fms",
+        agg["total_messages"],
+        agg["throughput_msg_per_s"],
+        agg["p95_ms"],
+        agg["p99_ms"],
+    )
     return agg
 
 
@@ -192,7 +213,13 @@ def scenario_10_pub_10_subs(messages_per_pub=100):
 
     files = [RESULTS_DIR / f"10x10_sub_{i}.json" for i in range(10)]
     agg = aggregate_results(files)
-    logger.info("10x10: msgs=%s, thr=%.1f msg/s, p95=%.2fms, p99=%.2fms", agg["total_messages"], agg["throughput_msg_per_s"], agg["p95_ms"], agg["p99_ms"])
+    logger.info(
+        "10x10: msgs=%s, thr=%.1f msg/s, p95=%.2fms, p99=%.2fms",
+        agg["total_messages"],
+        agg["throughput_msg_per_s"],
+        agg["p95_ms"],
+        agg["p99_ms"],
+    )
     return agg
 
 
@@ -217,17 +244,29 @@ def main():
     logger.info("\n" + "-" * 50)
     logger.info("ST-009 Summary:")
     for name, r in results.items():
-        logger.info("%s: thr=%.1f msg/s, p95=%.2fms, p99=%.2fms", name, r["throughput_msg_per_s"], r["p95_ms"], r["p99_ms"])
+        logger.info(
+            "%s: thr=%.1f msg/s, p95=%.2fms, p99=%.2fms",
+            name,
+            r["throughput_msg_per_s"],
+            r["p95_ms"],
+            r["p99_ms"],
+        )
     logger.info("-" * 50)
 
     # Basic expectations per plan
     ok = True
     for name, r in results.items():
         if r["throughput_msg_per_s"] < 1000.0:
-            logger.error("%s: Throughput below expectation (%.1f msg/s)", name, r["throughput_msg_per_s"])
+            logger.error(
+                "%s: Throughput below expectation (%.1f msg/s)",
+                name,
+                r["throughput_msg_per_s"],
+            )
             ok = False
         if r["p99_ms"] > 100.0:
-            logger.error("%s: P99 latency above expectation (%.2fms)", name, r["p99_ms"])
+            logger.error(
+                "%s: P99 latency above expectation (%.2fms)", name, r["p99_ms"]
+            )
             ok = False
 
     if not ok:

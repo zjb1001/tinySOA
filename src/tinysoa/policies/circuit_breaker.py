@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from enum import Enum
-from typing import Callable, Any, Optional, Awaitable
+from typing import Any, Awaitable, Callable, Optional
 
 
 class CircuitBreakerState(str, Enum):
@@ -51,7 +51,10 @@ class CircuitBreaker:
         self._half_open_calls = 0
 
     def _transition_to_half_open_if_ready(self):
-        if self.state == CircuitBreakerState.OPEN and self.last_failure_time is not None:
+        if (
+            self.state == CircuitBreakerState.OPEN
+            and self.last_failure_time is not None
+        ):
             if time.monotonic() - self.last_failure_time >= self.recovery_timeout:
                 self.state = CircuitBreakerState.HALF_OPEN
                 self.failure_count = 0
@@ -73,7 +76,10 @@ class CircuitBreaker:
         if self.state == CircuitBreakerState.HALF_OPEN:
             # Immediately open on failure in HALF_OPEN
             self._transition_to_open()
-        elif self.state == CircuitBreakerState.CLOSED and self.failure_count >= self.failure_threshold:
+        elif (
+            self.state == CircuitBreakerState.CLOSED
+            and self.failure_count >= self.failure_threshold
+        ):
             self._transition_to_open()
 
     async def call(self, func: Callable[[], Awaitable[Any]]) -> Any:

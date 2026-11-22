@@ -1,9 +1,9 @@
 import pytest
 
-from tinysoa.core.model import Service, Method, Event, Endpoint, Protocol, Message
-from tinysoa.core.errors import DuplicateError, NotFoundError
-from tinysoa.api.service_api import ServiceRegistry, ServiceInvoker
 from tinysoa.api.event_api import EventPublisher, EventSubscriber, Subscription
+from tinysoa.api.service_api import ServiceInvoker, ServiceRegistry
+from tinysoa.core.errors import DuplicateError, NotFoundError
+from tinysoa.core.model import Endpoint, Event, Message, Method, Protocol, Service
 
 
 class InMemoryRegistry(ServiceRegistry):
@@ -77,7 +77,9 @@ class InMemoryInvoker(ServiceInvoker):
         else:
             body = payload
             hdrs = dict(headers or {})
-        return Message(payload={"service": svc.name, "method": m.name, "echo": body}, headers=hdrs)
+        return Message(
+            payload={"service": svc.name, "method": m.name, "echo": body}, headers=hdrs
+        )
 
 
 class InMemoryBus(EventPublisher, EventSubscriber):

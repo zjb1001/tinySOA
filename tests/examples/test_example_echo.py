@@ -1,5 +1,7 @@
-import pytest
 import asyncio
+
+import pytest
+
 from examples.echo_service.app import EchoServiceApp
 from tinysoa.spi.interceptor import InvocationContext
 
@@ -10,10 +12,10 @@ async def test_echo_service_happy_path():
     app.start()
 
     received = []
-    
+
     async def on_said(msg):
         received.append(msg.payload)
-        
+
     app.subscribe_said(on_said)
 
     resp = await app.invoke({"text": "hi"})
@@ -83,4 +85,3 @@ async def test_echo_service_circuit_opens_then_recovers():
     assert resp.payload["echo"]["text"] == "ok"
 
     app.terminate()
-

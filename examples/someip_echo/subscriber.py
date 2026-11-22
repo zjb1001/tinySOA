@@ -20,6 +20,7 @@
 3. 收到事件后，handler 被调用 —— 参数是 tinySOA 的 EventMessage。
    上层代码不需要知道 SOME/IP 细节。
 """
+
 from __future__ import annotations
 
 import argparse
@@ -37,9 +38,10 @@ for _p in (str(_repo / "src"), str(_repo / "third_party" / "pysomeip" / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from tinysoa.eventbus.message import EventMessage
-from tinysoa.eventbus.someip import SomeIPEventBus
-from _common import LOCAL_IP, MAPPING, SUBSCRIBER_PORT, TOPIC
+from _common import LOCAL_IP, MAPPING, SUBSCRIBER_PORT, TOPIC  # noqa: E402
+
+from tinysoa.eventbus.message import EventMessage  # noqa: E402
+from tinysoa.eventbus.someip import SomeIPEventBus  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,7 +53,9 @@ logger = logging.getLogger("SUBSCRIBER")
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="SOME/IP Echo Subscriber")
-    p.add_argument("--want", type=int, default=3, help="events to receive before stopping")
+    p.add_argument(
+        "--want", type=int, default=3, help="events to receive before stopping"
+    )
     p.add_argument("--timeout", type=float, default=40.0, help="max seconds to wait")
     return p.parse_args()
 
@@ -61,8 +65,13 @@ async def main() -> None:
     want = args.want
     timeout = args.timeout
 
-    logger.info("starting (svc=0x%04x, port=%d, want=%d, timeout=%.0fs)",
-                MAPPING.service_id, SUBSCRIBER_PORT, want, timeout)
+    logger.info(
+        "starting (svc=0x%04x, port=%d, want=%d, timeout=%.0fs)",
+        MAPPING.service_id,
+        SUBSCRIBER_PORT,
+        want,
+        timeout,
+    )
 
     # is_publisher=False → 不对外通告，只做 SD FindSubscribe
     bus = SomeIPEventBus(

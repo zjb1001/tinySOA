@@ -1,4 +1,5 @@
 """Unit tests for EventMessage — serialization, validation, edge cases."""
+
 from __future__ import annotations
 
 import json
@@ -52,9 +53,11 @@ class TestEventMessageSerialization:
             EventMessage.from_dict({"payload": None})
 
     def test_from_dict_with_extra_fields_ignores_them(self) -> None:
-        msg = EventMessage.from_dict({
-            "topic": "test.topic",
-            "payload": None,
-            "unknown_field": "should be ignored",
-        })
+        msg = EventMessage.from_dict(
+            {
+                "topic": "test.topic",
+                "payload": None,
+                "unknown_field": "should be ignored",
+            }
+        )
         assert msg.topic == "test.topic"

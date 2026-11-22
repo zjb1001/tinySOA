@@ -171,7 +171,7 @@ fi
 if [[ "$RUN_SMOKE" == "1" ]]; then
     run_blocking "examples smoke" \
         env PYTHON="$PYTHON_BIN" make -C "$ROOT_DIR/examples" \
-        smoke-vdp smoke-calc smoke-pubsub smoke-multipub
+        smoke-vdp smoke-calc smoke-pubsub smoke-pubsub-many
 fi
 
 echo ""

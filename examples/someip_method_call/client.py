@@ -9,9 +9,8 @@
 
 运行（先起 Server，再起 Client）:
 
-    cd tinySOA
-    PYTHONPATH=src:third_party/pysomeip/src \\
-      python examples/someip_method_call/client.py
+    PYTHONPATH=.:src:third_party/pysomeip/src \\
+      python -m examples.someip_method_call.client
 
 退出码 0 正常；1 服务未发现或调用超时。
 """
@@ -25,30 +24,24 @@ import logging
 import socket
 import sys
 import time
-from pathlib import Path
 from typing import Optional, Sequence
 
-# 确保 tinysoa + someip 在 sys.path 中
-_repo = Path(__file__).resolve().parents[2]
-for _p in (str(_repo / "src"), str(_repo / "third_party" / "pysomeip" / "src")):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+import someip.header as hdr
+from someip.config import Service as SomeIPServiceConfig
+from someip.sd import (
+    ClientServiceListener,
+    DatagramProtocolAdapter,
+    ServiceDiscoveryProtocol,
+    SOMEIPDatagramProtocol,
+)
 
-import someip.header as hdr  # noqa: E402
-from _common import (  # noqa: E402
+from ._common import (
     CLIENT_PORT,
     INSTANCE_ID,
     LOCAL_IP,
     MAJOR_VERSION,
     METHODS,
     SERVICE_ID,
-)
-from someip.config import Service as SomeIPServiceConfig  # noqa: E402
-from someip.sd import (  # noqa: E402
-    ClientServiceListener,
-    DatagramProtocolAdapter,
-    ServiceDiscoveryProtocol,
-    SOMEIPDatagramProtocol,
 )
 
 logger = logging.getLogger("calc.client")

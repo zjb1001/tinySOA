@@ -1,37 +1,44 @@
 # Makefile —— tinySOA examples 统一入口。
 #
-# 每个示例组有自己的 Makefile (含 start/stop/smoke/tmux/clean)；
-# 本文件提供顶层聚合命令 (help / clean-all) 与 echo_service 快捷入口。
+# 所有案例都以包模块运行：python -m examples.<name>.<module>
+# 每个子目录仍有自己的 Makefile（help/start/stop/smoke/tmux/clean）。
+#
+# 命名约定：
+#   local_*   进程内（InMemoryEventBus）
+#   tcp_*     TCP broker 拓扑
+#   someip_*  SOME/IP peer 拓扑
 #
 # 常用：
 #   make                        = make help
-#   make echo                   = 跑 echo_service 自包含 demo
-#   make smoke-all              = 顺序跑所有冒烟测试
-#   make start-all              = 后台启动所有示例组
-#   make stop-all               = 停止所有示例组后台进程
-#   make clean-all              = 清理所有产物
-#   make tmux-pubsub            = tmux 可视化 TCP pub/sub
-#   make tmux-someip            = tmux 可视化 SOME/IP 多传感器
-#   make tmux-xprocess          = tmux 可视化 cross-process SOME/IP
+#   make echo                   = 跑本地 echo 服务
+#   make interceptors           = 跑拦截器 + Auth
+#   make vdp                    = 跑车辆数据平台
+#   make tmux-pubsub            = TCP broker 一发多收
+#   make tmux-pubsub-many       = TCP broker 多发一收
+#   make tmux-echo-someip       = SOME/IP pub/sub echo
+#   make tmux-someip            = SOME/IP 多传感器
+#   make tmux-xprocess          = SOME/IP 跨进程编排
+#   make smoke-all              = 顺序跑稳定冒烟组
+#   make clean-all              = 停止后台进程并清理产物
 
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
 
-SELF_DIR    := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/
-TINYSOA_DIR := $(abspath $(SELF_DIR)..)
-PYTHONPATH  := $(TINYSOA_DIR)/src:$(TINYSOA_DIR)/third_party/pysomeip/src
-PYTHON      ?= python3
-
+SELF_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/
+REPO_ROOT := $(abspath $(SELF_DIR)..)
+PYTHONPATH := $(REPO_ROOT):$(REPO_ROOT)/src:$(REPO_ROOT)/third_party/pysomeip/src
+PYTHON ?= $(shell [ -x "$(REPO_ROOT)/.venv/bin/python" ] && echo "$(REPO_ROOT)/.venv/bin/python" || echo python3)
 LOG_LEVEL ?= INFO
 
-# 各子 Makefile 目录
-PUBSUB   := $(SELF_DIR)pubsub_multi/
-SOMEIP   := $(SELF_DIR)someip_multi_publishers/
-MULTIPUB := $(SELF_DIR)multi_publishers_single_sub/
-ECHOSOMEIP := $(SELF_DIR)someip_echo/
-XPROCESS   := $(SELF_DIR)cross_process_someip/
-VDP       := $(SELF_DIR)vehicle_data_platform/
-CALC      := $(SELF_DIR)someip_method_call/
+LOCAL_ECHO := $(SELF_DIR)local_echo_service/
+LOCAL_INTERCEPTORS := $(SELF_DIR)local_interceptor_auth/
+LOCAL_VDP := $(SELF_DIR)local_vehicle_platform/
+TCP_ONE := $(SELF_DIR)tcp_pubsub_one_to_many/
+TCP_MANY := $(SELF_DIR)tcp_pubsub_many_to_one/
+SOMEIP_ECHO := $(SELF_DIR)someip_pubsub_echo/
+SOMEIP_MULTI := $(SELF_DIR)someip_pubsub_multi_sensor/
+SOMEIP_CALL := $(SELF_DIR)someip_method_call/
+SOMEIP_XPROC := $(SELF_DIR)someip_cross_process/
 
 # =========================================================================
 # Help
@@ -40,206 +47,172 @@ CALC      := $(SELF_DIR)someip_method_call/
 help: ## 显示帮助
 	@echo "tinySOA examples — 顶层 Makefile"
 	@echo ""
-	@echo "=== 单进程 Demo ==="
-	@echo "  make echo                      跑 echo_service 自包含 demo"
-	@echo "  make interceptors              跑 interceptor_auth 自包含 demo (拦截器+Auth)"
-	@echo "  make vdp                       跑车辆数据平台 demo (Container + Lifecycle + Health)"
+	@echo "=== 本地单进程（InMemoryEventBus） ==="
+	@echo "  make echo                       本地 echo 服务"
+	@echo "  make interceptors               拦截器 + Auth"
+	@echo "  make vdp                        车辆数据平台"
 	@echo ""
-	@echo "=== SOME/IP Echo 双进程 ($(ECHOSOMEIP)) ==="
-	@echo "  make tmux-echo-someip          tmux 双窗格 (pub | sub)"
-	@echo "  make smoke-echo-someip          bounded 冒烟 (publisher N 条 → subscriber)"
+	@echo "=== TCP broker（BROKER 拓扑） ==="
+	@echo "  make tmux-pubsub                tmux：一发多收"
+	@echo "  make smoke-pubsub               冒烟：一发多收"
+	@echo "  make tmux-pubsub-many           tmux：多发一收"
+	@echo "  make smoke-pubsub-many          冒烟：多发一收"
 	@echo ""
-	@echo "=== TCPEventBus 发布/订阅 ($(PUBSUB)) ==="
-	@echo "  make tmux-pubsub               tmux 四窗格 (server|sub1 / pub|sub2)"
-	@echo "  make smoke-pubsub              端到端冒烟 (TCPEventBus)"
+	@echo "=== SOME/IP（PEER 拓扑） ==="
+	@echo "  make tmux-echo-someip           tmux：pub/sub echo"
+	@echo "  make smoke-echo-someip          冒烟：pub/sub echo"
+	@echo "  make tmux-someip                tmux：多传感器"
+	@echo "  make smoke-someip               冒烟：多传感器"
+	@echo "  make run-xprocess               前台：跨进程编排"
+	@echo "  make tmux-xprocess              tmux：跨进程编排"
 	@echo ""
-	@echo "=== SOME/IP 多传感器 ($(SOMEIP)) ==="
-	@echo "  make tmux-someip               tmux 四窗格 (agg / temp|humid|pressure)"
-	@echo "  make smoke-someip              bounded 冒烟"
-	@echo ""
-	@echo "=== 多发布者 / 单订阅者 ($(MULTIPUB)) ==="
-	@echo "  make smoke-multipub            端到端冒烟 (pub-A + pub-B)"
-	@echo ""
-	@echo "=== Cross-process SOME/IP ($(XPROCESS)) ==="
-	@echo "  make run-xprocess              编排器前台一次测试"
-	@echo "  make start-xprocess            后台常驻"
-	@echo "  make tmux-xprocess             tmux 三窗格 (SD 监控 | pub | sub)"
-	@echo ""
-	@echo "=== 车辆数据平台 (工程实践) ($(VDP)) ==="
-	@echo "  make vdp                       前台运行 (Container + Lifecycle + Health)"
-	@echo "  make smoke-vdp                  冒烟测试 (dry-run + 5s run)"
-	@echo "  make tmux-vdp                   tmux 双窗格可视化"
-	@echo ""
-	@echo "=== SOME/IP Calculator RPC ($(CALC)) ==="
-	@echo "  make smoke-calc                 冒烟测试 (Server → Client 3× RPC)"
-	@echo "  make tmux-calc                  tmux 双窗格可视化"
+	@echo "=== SOME/IP RPC ==="
+	@echo "  make smoke-calc                 冒烟：Calculator RPC"
+	@echo "  make tmux-calc                  tmux：Calculator RPC"
 	@echo ""
 	@echo "=== 全局 ==="
-	@echo "  make start-all                 后台启动所有示例组"
-	@echo "  make stop-all                  停止所有示例组后台进程"
-	@echo "  make status-all                查看所有示例组状态"
-	@echo "  make clean-all                 停止所有进程并清理全部产物"
+	@echo "  make start-all                   后台启动所有可常驻示例组"
+	@echo "  make stop-all                    停止全部示例组"
+	@echo "  make status-all                  查看全部示例组状态"
+	@echo "  make smoke-all                   顺序跑稳定冒烟组"
+	@echo "  make clean-all                   停止进程并清理产物"
 	@echo ""
 	@echo "  PYTHON:     $(PYTHON)"
 	@echo "  PYTHONPATH: $(PYTHONPATH)"
 
 # =========================================================================
-# echo_service (单进程、自包含、无后台管理)
+# 本地单进程
 # =========================================================================
-.PHONY: echo
-echo: ## 跑 echo_service demo (确定性的自包含示例)
-	@cd $(TINYSOA_DIR) && PYTHONPATH=$(PYTHONPATH) \
-	  $(PYTHON) $(SELF_DIR)echo_service/app.py
-	@echo ">> echo_service 完成"
+.PHONY: echo interceptors vdp smoke-vdp tmux-vdp
+echo: ## 本地 echo 服务
+	@cd $(REPO_ROOT) && PYTHONPATH=$(PYTHONPATH) \
+	  $(PYTHON) -m examples.local_echo_service.app
 
-# =========================================================================
-# interceptor_auth (单进程、自包含、自定义拦截器 + Auth)
-# =========================================================================
-.PHONY: interceptors
-interceptors: ## 跑 interceptor_auth demo (自定义拦截器 + Auth, 自包含)
-	@cd $(TINYSOA_DIR) && PYTHONPATH=$(PYTHONPATH) \
-	  $(PYTHON) $(SELF_DIR)interceptor_auth/app.py
-	@echo ">> interceptor_auth 完成"
+interceptors: ## 拦截器 + Auth
+	@cd $(REPO_ROOT) && PYTHONPATH=$(PYTHONPATH) \
+	  $(PYTHON) -m examples.local_interceptor_auth.app
 
-# =========================================================================
-# 车辆数据平台 (单进程、工程实践)
-# =========================================================================
-.PHONY: vdp smoke-vdp tmux-vdp
-vdp: ## 前台运行车辆数据平台 (Container + Lifecycle + Health)
-	@cd $(TINYSOA_DIR) && PYTHONPATH=$(PYTHONPATH) \
-	  $(PYTHON) $(VDP)app.py --duration 15 --health-interval 3.0 --log-level INFO
-	@echo ">> vdp 完成"
+vdp: ## 车辆数据平台
+	@cd $(REPO_ROOT) && PYTHONPATH=$(PYTHONPATH) \
+	  $(PYTHON) -m examples.local_vehicle_platform.app \
+	  --duration 15 --health-interval 3.0 --log-level $(LOG_LEVEL)
 
-smoke-vdp: ## 车辆数据平台冒烟测试
-	@$(MAKE) -C $(VDP) smoke
+smoke-vdp: ## 车辆数据平台冒烟
+	@$(MAKE) -C $(LOCAL_VDP) smoke
 
 tmux-vdp: ## tmux 可视化车辆数据平台
-	@$(MAKE) -C $(VDP) tmux
+	@$(MAKE) -C $(LOCAL_VDP) tmux
 
 # =========================================================================
-# SOME/IP Calculator RPC (双进程、method call)
+# SOME/IP RPC
 # =========================================================================
-.PHONY: calc smoke-calc tmux-calc
-smoke-calc: ## SOME/IP Calculator RPC 冒烟测试
-	@$(MAKE) -C $(CALC) smoke
+.PHONY: smoke-calc tmux-calc
+smoke-calc: ## SOME/IP Calculator RPC 冒烟
+	@$(MAKE) -C $(SOMEIP_CALL) smoke
 
-tmux-calc: ## tmux 可视化 SOME/IP Calculator RPC
-	@$(MAKE) -C $(CALC) tmux
-
-# =========================================================================
-# 子组委托
-# =========================================================================
-
-# --- TCP pub/sub ---
-tmux-pubsub: ## tmux 可视化 TCP pub/sub
-	@$(MAKE) -C $(PUBSUB) tmux
-
-smoke-pubsub: ## TCP pub/sub 端到端冒烟
-	@$(MAKE) -C $(PUBSUB) smoke
-
-start-pubsub: ## 后台启动 pubsub_multi
-	@$(MAKE) -C $(PUBSUB) start
-
-stop-pubsub: ## 停止 pubsub_multi 后台
-	@$(MAKE) -C $(PUBSUB) stop
-
-logs-pubsub: ## tail pubsub_multi 日志
-	@$(MAKE) -C $(PUBSUB) logs
-
-# --- SOME/IP Echo 双进程 ---
-tmux-echo-someip: ## tmux 可视化 SOME/IP Echo
-	@$(MAKE) -C $(ECHOSOMEIP) tmux
-
-smoke-echo-someip: ## SOME/IP Echo bounded 冒烟
-	@$(MAKE) -C $(ECHOSOMEIP) smoke
-
-start-echo-someip: ## 后台启动 SOME/IP Echo
-	@$(MAKE) -C $(ECHOSOMEIP) start
-
-stop-echo-someip: ## 停止 SOME/IP Echo 后台
-	@$(MAKE) -C $(ECHOSOMEIP) stop
-
-logs-echo-someip: ## tail SOME/IP Echo 日志
-	@$(MAKE) -C $(ECHOSOMEIP) logs
-
-# --- SOME/IP 多传感器 ---
-tmux-someip: ## tmux 可视化 SOME/IP 多传感器
-	@$(MAKE) -C $(SOMEIP) tmux
-
-smoke-someip: ## SOME/IP 多传感器 bounded 冒烟
-	@$(MAKE) -C $(SOMEIP) smoke
-
-start-someip: ## 后台启动 SOME/IP 多传感器
-	@$(MAKE) -C $(SOMEIP) start
-
-stop-someip: ## 停止 SOME/IP 多传感器后台
-	@$(MAKE) -C $(SOMEIP) stop
-
-logs-someip: ## tail SOME/IP 多传感器日志
-	@$(MAKE) -C $(SOMEIP) logs
-
-# --- 多发布者 / 单订阅者 ---
-smoke-multipub: ## 多发布者 / 单订阅者冒烟
-	@$(MAKE) -C $(MULTIPUB) smoke
-
-start-multipub: ## 后台启动多发布者 / 单订阅者
-	@$(MAKE) -C $(MULTIPUB) start
-
-stop-multipub: ## 停止多发布者 / 单订阅者后台
-	@$(MAKE) -C $(MULTIPUB) stop
-
-logs-multipub: ## tail 多发布者日志
-	@$(MAKE) -C $(MULTIPUB) logs
-
-# --- Cross-process SOME/IP ---
-run-xprocess: ## 编排器前台一次测试
-	@$(MAKE) -C $(XPROCESS) run
-
-tmux-xprocess: ## tmux 可视化 cross-process SOME/IP
-	@$(MAKE) -C $(XPROCESS) tmux
-
-start-xprocess: ## 后台启动 cross_process_someip
-	@$(MAKE) -C $(XPROCESS) start
-
-stop-xprocess: ## 停止 cross_process_someip 后台
-	@$(MAKE) -C $(XPROCESS) stop
-
-logs-xprocess: ## tail cross_process_someip 日志
-	@$(MAKE) -C $(XPROCESS) logs
+tmux-calc: ## tmux 可视化 Calculator RPC
+	@$(MAKE) -C $(SOMEIP_CALL) tmux
 
 # =========================================================================
-# 全局命令
+# TCP broker
 # =========================================================================
+.PHONY: tmux-pubsub smoke-pubsub start-pubsub stop-pubsub logs-pubsub \
+        tmux-pubsub-many smoke-pubsub-many start-pubsub-many stop-pubsub-many logs-pubsub-many
+tmux-pubsub:
+	@$(MAKE) -C $(TCP_ONE) tmux
+smoke-pubsub:
+	@$(MAKE) -C $(TCP_ONE) smoke
+start-pubsub:
+	@$(MAKE) -C $(TCP_ONE) start
+stop-pubsub:
+	@$(MAKE) -C $(TCP_ONE) stop
+logs-pubsub:
+	@$(MAKE) -C $(TCP_ONE) logs
 
+tmux-pubsub-many:
+	@$(MAKE) -C $(TCP_MANY) tmux
+smoke-pubsub-many:
+	@$(MAKE) -C $(TCP_MANY) smoke
+start-pubsub-many:
+	@$(MAKE) -C $(TCP_MANY) start
+stop-pubsub-many:
+	@$(MAKE) -C $(TCP_MANY) stop
+logs-pubsub-many:
+	@$(MAKE) -C $(TCP_MANY) logs
+
+# =========================================================================
+# SOME/IP pub/sub
+# =========================================================================
+.PHONY: tmux-echo-someip smoke-echo-someip start-echo-someip stop-echo-someip logs-echo-someip \
+        tmux-someip smoke-someip start-someip stop-someip logs-someip \
+        run-xprocess tmux-xprocess start-xprocess stop-xprocess logs-xprocess
+tmux-echo-someip:
+	@$(MAKE) -C $(SOMEIP_ECHO) tmux
+smoke-echo-someip:
+	@$(MAKE) -C $(SOMEIP_ECHO) smoke
+start-echo-someip:
+	@$(MAKE) -C $(SOMEIP_ECHO) start
+stop-echo-someip:
+	@$(MAKE) -C $(SOMEIP_ECHO) stop
+logs-echo-someip:
+	@$(MAKE) -C $(SOMEIP_ECHO) logs
+
+tmux-someip:
+	@$(MAKE) -C $(SOMEIP_MULTI) tmux
+smoke-someip:
+	@$(MAKE) -C $(SOMEIP_MULTI) smoke
+start-someip:
+	@$(MAKE) -C $(SOMEIP_MULTI) start
+stop-someip:
+	@$(MAKE) -C $(SOMEIP_MULTI) stop
+logs-someip:
+	@$(MAKE) -C $(SOMEIP_MULTI) logs
+
+run-xprocess:
+	@$(MAKE) -C $(SOMEIP_XPROC) run
+tmux-xprocess:
+	@$(MAKE) -C $(SOMEIP_XPROC) tmux
+start-xprocess:
+	@$(MAKE) -C $(SOMEIP_XPROC) start
+stop-xprocess:
+	@$(MAKE) -C $(SOMEIP_XPROC) stop
+logs-xprocess:
+	@$(MAKE) -C $(SOMEIP_XPROC) logs
+
+# =========================================================================
+# 全局
+# =========================================================================
 .PHONY: start-all stop-all status-all smoke-all clean-all
-
-start-all: start-echo-someip start-pubsub start-someip start-multipub ## 后台启动所有示例组
-	@echo ">> 所有示例组已后台启动"
+start-all: start-echo-someip start-pubsub start-pubsub-many start-someip start-xprocess ## 后台启动所有常驻组
+	@echo ">> 所有可常驻示例组已后台启动"
 
 stop-all: ## 停止全部示例组
-	@$(MAKE) -C $(ECHOSOMEIP) stop 2>/dev/null || true
-	@$(MAKE) -C $(PUBSUB) stop 2>/dev/null || true
-	@$(MAKE) -C $(SOMEIP) stop 2>/dev/null || true
-	@$(MAKE) -C $(MULTIPUB) stop 2>/dev/null || true
-	@$(MAKE) -C $(XPROCESS) stop 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_ECHO) stop 2>/dev/null || true
+	@$(MAKE) -C $(TCP_ONE) stop 2>/dev/null || true
+	@$(MAKE) -C $(TCP_MANY) stop 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_MULTI) stop 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_XPROC) stop 2>/dev/null || true
 	@echo ">> 所有示例组已停止"
 
-status-all: ## 查看所有示例组状态
-	@echo "=== pubsub_multi ==="; $(MAKE) --no-print-directory -C $(PUBSUB) status
-	@echo "=== someip_multi ==="; $(MAKE) --no-print-directory -C $(SOMEIP) status
-	@echo "=== multi_pub_sub ==="; $(MAKE) --no-print-directory -C $(MULTIPUB) status
-	@echo "=== cross_process  ==="; $(MAKE) --no-print-directory -C $(XPROCESS) status
+status-all: ## 查看全部示例组状态
+	@echo "=== tcp_pubsub_one_to_many ==="; $(MAKE) --no-print-directory -C $(TCP_ONE) status
+	@echo "=== tcp_pubsub_many_to_one ==="; $(MAKE) --no-print-directory -C $(TCP_MANY) status
+	@echo "=== someip_pubsub_echo ==="; $(MAKE) --no-print-directory -C $(SOMEIP_ECHO) status
+	@echo "=== someip_pubsub_multi_sensor ==="; $(MAKE) --no-print-directory -C $(SOMEIP_MULTI) status
+	@echo "=== someip_cross_process ==="; $(MAKE) --no-print-directory -C $(SOMEIP_XPROC) status
 
-smoke-all: smoke-echo-someip smoke-pubsub smoke-someip smoke-multipub smoke-vdp smoke-calc ## 顺序跑所有冒烟测试
+smoke-all: echo interceptors smoke-echo-someip smoke-pubsub smoke-pubsub-many smoke-someip smoke-vdp smoke-calc run-xprocess ## 顺序跑稳定冒烟组
 	@echo ">> 所有冒烟测试完成"
 
 clean-all: stop-all ## 停止全部进程并清理产物
-	@$(MAKE) -C $(ECHOSOMEIP) clean 2>/dev/null || true
-	@$(MAKE) -C $(PUBSUB) clean 2>/dev/null || true
-	@$(MAKE) -C $(SOMEIP) clean 2>/dev/null || true
-	@$(MAKE) -C $(MULTIPUB) clean 2>/dev/null || true
-	@$(MAKE) -C $(XPROCESS) clean 2>/dev/null || true
-	@$(MAKE) -C $(VDP) clean 2>/dev/null || true
-	@$(MAKE) -C $(CALC) clean 2>/dev/null || true
+	@$(MAKE) -C $(LOCAL_ECHO) clean 2>/dev/null || true
+	@$(MAKE) -C $(LOCAL_INTERCEPTORS) clean 2>/dev/null || true
+	@$(MAKE) -C $(LOCAL_VDP) clean 2>/dev/null || true
+	@$(MAKE) -C $(TCP_ONE) clean 2>/dev/null || true
+	@$(MAKE) -C $(TCP_MANY) clean 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_ECHO) clean 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_MULTI) clean 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_CALL) clean 2>/dev/null || true
+	@$(MAKE) -C $(SOMEIP_XPROC) clean 2>/dev/null || true
 	@rm -f $(SELF_DIR)*.pid $(SELF_DIR)*.log
 	@echo ">> 全局清理完成"

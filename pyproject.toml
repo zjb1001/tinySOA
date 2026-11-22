@@ -1,6 +1,6 @@
 [tool.pytest.ini_options]
 testpaths = ["tests/unit", "tests/integration", "tests/examples"]
-pythonpath = ["src", "third_party/pysomeip/src"]
+pythonpath = [".", "src", "third_party/pysomeip/src"]
 asyncio_mode = "auto"
 addopts = ["-ra", "--strict-markers", "--color=yes"]
 markers = [

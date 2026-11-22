@@ -13,7 +13,7 @@ set -euo pipefail
 
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TINYSOA_DIR="$(cd "$SELF_DIR/../.." && pwd)"
-export PYTHONPATH="$TINYSOA_DIR/src:$TINYSOA_DIR/third_party/pysomeip/src"
+export PYTHONPATH="$TINYSOA_DIR:$TINYSOA_DIR/src:$TINYSOA_DIR/third_party/pysomeip/src"
 PY="python3"
 [ -x "$TINYSOA_DIR/.venv/bin/python" ] && PY="$TINYSOA_DIR/.venv/bin/python"
 
@@ -30,7 +30,7 @@ tmux kill-session -t "$SESSION" 2>/dev/null || true
 sleep 0.3
 
 # ── 左窗格：Server 运行 ─────────────────────────────────────────────
-SRV_CMD="cd $TINYSOA_DIR && PYTHONPATH=$PYTHONPATH $PY $SELF_DIR/server.py --log-level INFO"
+SRV_CMD="cd $TINYSOA_DIR && PYTHONPATH=$PYTHONPATH $PY -m examples.someip_method_call.server --log-level INFO"
 
 LEFT=$(tmux new-session -d -s "$SESSION" -x 180 -y 36 -P -F '#{pane_id}' "$SRV_CMD")
 tmux set-option -t "$SESSION:0" remain-on-exit on
@@ -41,7 +41,7 @@ RIGHT=$(tmux split-window -h -p 45 -t "$LEFT" -P -F '#{pane_id}' \
   "export CLI_WD='$TINYSOA_DIR' \
           CLI_PP='$PYTHONPATH' \
           CLI_PY='$PY' \
-          CLI_S='$SELF_DIR/client.py'; bash -c '
+          CLI_MODULE='examples.someip_method_call.client'; bash -c '
 clear
 cat <<\"INNER\"
 
@@ -70,7 +70,7 @@ cat <<\"INNER\"
 INNER
 
 sleep 4
-cd \"\$CLI_WD\" && PYTHONPATH=\"\$CLI_PP\" \"\$CLI_PY\" \"\$CLI_S\" --log-level INFO
+cd \"\$CLI_WD\" && PYTHONPATH=\"\$CLI_PP\" \"\$CLI_PY\" -m \"\$CLI_MODULE\" --log-level INFO
 echo \"\"
 echo \"  All done. Press Enter...\"
 read -r _

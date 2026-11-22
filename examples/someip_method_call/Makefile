@@ -18,8 +18,9 @@ SHELL := /bin/bash
 
 SELF_DIR    := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/
 TINYSOA_DIR := $(abspath $(SELF_DIR)../..)
-PYTHONPATH  := $(TINYSOA_DIR)/src:$(TINYSOA_DIR)/third_party/pysomeip/src
+PYTHONPATH  := $(TINYSOA_DIR):$(TINYSOA_DIR)/src:$(TINYSOA_DIR)/third_party/pysomeip/src
 PYTHON      ?= python3
+MODULE      := examples.someip_method_call
 
 # ---- 可调参数 -----------------------------------------------------------
 LOG_LEVEL ?= INFO
@@ -53,7 +54,7 @@ help: ## 显示帮助
 
 start: stop ## 后台启动 Server
 	@cd $(TINYSOA_DIR) && PYTHONPATH=$(PYTHONPATH) \
-	  exec $(PYTHON) $(SELF_DIR)server.py --log-level $(LOG_LEVEL) \
+	  exec $(PYTHON) -m $(MODULE).server --log-level $(LOG_LEVEL) \
 	    > $(LOG_SRV) 2>&1 & echo $$! > $(PID_SRV)
 	@echo ">> Server 已启动 (pid $$(cat $(PID_SRV)))，日志 $(LOG_SRV)"
 	@echo "   观察: make logs    运行 Client: make smoke"
@@ -87,12 +88,12 @@ smoke: ## 冒烟测试: Server 启动 → Client 调用 → 验证 3 method 全�
 	@echo "=== SOME/IP Calculator RPC 冒烟开始 ==="; \
 	echo "  Phase 1: 启动 Server ..."; \
 	cd $(TINYSOA_DIR) && PYTHONPATH=$(PYTHONPATH) \
-	  exec $(PYTHON) $(SELF_DIR)server.py --log-level INFO \
+	  exec $(PYTHON) -m $(MODULE).server --log-level INFO \
 	    > $(LOG_SRV) 2>&1 & echo $$! > $(PID_SRV); \
 	sleep 3; \
 	echo "  Phase 2: 运行 Client ..."; \
 	cd $(TINYSOA_DIR) && PYTHONPATH=$(PYTHONPATH) \
-	  $(PYTHON) $(SELF_DIR)client.py --log-level INFO \
+	  $(PYTHON) -m $(MODULE).client --log-level INFO \
 	    > $(LOG_CLI) 2>&1; EXIT=$$?; \
 	echo ""; \
 	echo "  Phase 3: 验证"; \

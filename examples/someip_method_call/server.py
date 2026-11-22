@@ -6,9 +6,8 @@ Client 发来 REQUEST（含 JSON 操作数），Server 计算后返回 RESPONSE�
 
 运行（先起 Server，再起 Client）:
 
-    cd tinySOA
-    PYTHONPATH=src:third_party/pysomeip/src \\
-      python examples/someip_method_call/server.py
+    PYTHONPATH=.:src:third_party/pysomeip/src \\
+      python -m examples.someip_method_call.server
 
 退出码 0 正常；1 端口占用或其它错误。
 """
@@ -22,17 +21,16 @@ import logging
 import signal
 import socket
 import sys
-from pathlib import Path
 from typing import Optional, Sequence
 
-# 确保 tinysoa + someip 在 sys.path 中
-_repo = Path(__file__).resolve().parents[2]
-for _p in (str(_repo / "src"), str(_repo / "third_party" / "pysomeip" / "src")):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+import someip.header as hdr
+from someip.sd import (
+    DatagramProtocolAdapter,
+    ServiceDiscoveryProtocol,
+    SOMEIPDatagramProtocol,
+)
 
-import someip.header as hdr  # noqa: E402
-from _common import (  # noqa: E402
+from ._common import (
     INSTANCE_ID,
     LOCAL_IP,
     MAJOR_VERSION,
@@ -40,11 +38,6 @@ from _common import (  # noqa: E402
     MINOR_VERSION,
     SERVER_PORT,
     SERVICE_ID,
-)
-from someip.sd import (  # noqa: E402
-    DatagramProtocolAdapter,
-    ServiceDiscoveryProtocol,
-    SOMEIPDatagramProtocol,
 )
 
 logger = logging.getLogger("calc.server")

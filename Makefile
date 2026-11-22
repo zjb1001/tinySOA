@@ -10,15 +10,16 @@ ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 PYTHON ?= $(if $(wildcard $(ROOT)/.venv/bin/python),$(ROOT)/.venv/bin/python,python3)
 ARGS ?=
 
-.PHONY: help ci ci-strict ci-coverage test lint typecheck smoke \
+.PHONY: help ci ci-advisory ci-strict ci-coverage test lint typecheck smoke \
         agent-flow agent-flow-dry-run release clean-agent-flow
 
 help: ## 显示帮助
 	@echo "tinySOA — 本地 CI / Agent Flow"
 	@echo ""
 	@echo "=== CI ==="
-	@echo "  make ci                  pytest 阻断 + ruff/black/mypy 告警"
-	@echo "  make ci-strict           告警也升级为阻断"
+	@echo "  make ci                  pytest + ruff/black/mypy 全部阻断（默认）"
+	@echo "  make ci-advisory         pytest 阻断，ruff/black/mypy 仅告警"
+	@echo "  make ci-strict           make ci 的兼容别名"
 	@echo "  make ci-coverage         pytest + coverage"
 	@echo "  make test                只跑 pytest"
 	@echo "  make lint                只跑 ruff + black"
@@ -37,10 +38,13 @@ help: ## 显示帮助
 	@echo "  PYTHON: $(PYTHON)"
 	@echo "  文档:   docs/ci-cd.md, docs/agent-flow.md"
 
-ci: ## pytest 阻断 + lint/类型告警
+ci: ## pytest + lint/类型全部阻断（默认）
 	@PYTHON="$(PYTHON)" bash "$(ROOT)/scripts/ci.sh"
 
-ci-strict: ## 所有门禁阻断
+ci-advisory: ## pytest 阻断，lint/类型仅告警
+	@PYTHON="$(PYTHON)" bash "$(ROOT)/scripts/ci.sh" --advisory
+
+ci-strict: ## make ci 的兼容别名
 	@PYTHON="$(PYTHON)" bash "$(ROOT)/scripts/ci.sh" --strict
 
 ci-coverage: ## pytest + coverage

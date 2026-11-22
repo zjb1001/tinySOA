@@ -3,13 +3,14 @@
 #
 # Default policy (see docs/ci-cd.md):
 #   * pytest          -> blocking
-#   * ruff / black    -> advisory
-#   * mypy            -> advisory
+#   * ruff / black    -> blocking
+#   * mypy            -> blocking
 #   * examples smoke  -> opt-in (--with-smoke / --smoke-only)
 #
 # Usage:
-#   bash scripts/ci.sh                  # tests + advisory quality checks
-#   bash scripts/ci.sh --strict         # advisory failures also fail the run
+#   bash scripts/ci.sh                  # tests + blocking quality checks
+#   bash scripts/ci.sh --advisory       # tests block; quality checks warn only
+#   bash scripts/ci.sh --strict         # alias for the default
 #   bash scripts/ci.sh --tests-only
 #   bash scripts/ci.sh --lint-only
 #   bash scripts/ci.sh --typecheck-only
@@ -44,11 +45,11 @@ RUN_TESTS=1
 RUN_LINT=1
 RUN_TYPE=1
 RUN_SMOKE=0
-STRICT=0
+STRICT=1
 COVERAGE=0
 
 usage() {
-    sed -n '2,28p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 for arg in "$@"; do
@@ -65,6 +66,8 @@ for arg in "$@"; do
             RUN_SMOKE=1 ;;
         --strict)
             STRICT=1 ;;
+        --advisory)
+            STRICT=0 ;;
         --coverage)
             COVERAGE=1 ;;
         --help|-h)
@@ -77,7 +80,6 @@ done
 
 SUMMARY=()
 FAILED=0
-ADVISORY_FAILED=0
 
 record() {
     SUMMARY+=("$1")
@@ -96,16 +98,18 @@ run_blocking() {
     fi
 }
 
-run_advisory() {
+run_quality() {
     local name="$1"
     shift
     echo ""
-    echo "==> $name (advisory)"
+    echo "==> $name"
     if "$@"; then
         record "PASS  $name"
+    elif [[ "$STRICT" == "1" ]]; then
+        record "FAIL  $name"
+        FAILED=1
     else
         record "WARN  $name"
-        ADVISORY_FAILED=1
     fi
 }
 
@@ -134,19 +138,19 @@ fi
 
 if [[ "$RUN_LINT" == "1" ]]; then
     if python_has ruff; then
-        run_advisory "ruff" "$PYTHON_BIN" -m ruff check src tests examples
+        run_quality "ruff" "$PYTHON_BIN" -m ruff check src tests examples
     elif command -v ruff >/dev/null 2>&1; then
-        run_advisory "ruff" ruff check src tests examples
+        run_quality "ruff" ruff check src tests examples
     else
         record "SKIP  ruff (not installed)"
     fi
 
     if python_has black; then
-        run_advisory "black" \
+        run_quality "black" \
             "$PYTHON_BIN" -m black --check --diff \
             --exclude '/(\.venv|\.agent-flow|third_party)/' src tests examples
     elif command -v black >/dev/null 2>&1; then
-        run_advisory "black" \
+        run_quality "black" \
             black --check --diff \
             --exclude '/(\.venv|\.agent-flow|third_party)/' src tests examples
     else
@@ -156,9 +160,9 @@ fi
 
 if [[ "$RUN_TYPE" == "1" ]]; then
     if python_has mypy; then
-        run_advisory "mypy" "$PYTHON_BIN" -m mypy --show-error-codes src/tinysoa
+        run_quality "mypy" "$PYTHON_BIN" -m mypy --show-error-codes src/tinysoa
     elif command -v mypy >/dev/null 2>&1; then
-        run_advisory "mypy" mypy --show-error-codes src/tinysoa
+        run_quality "mypy" mypy --show-error-codes src/tinysoa
     else
         record "SKIP  mypy (not installed)"
     fi
@@ -178,11 +182,7 @@ fi
 echo "============================================"
 
 if [[ "$FAILED" -ne 0 ]]; then
-    echo "ci: FAILED (blocking gate)"
-    exit 1
-fi
-if [[ "$STRICT" == "1" && "$ADVISORY_FAILED" -ne 0 ]]; then
-    echo "ci: FAILED (--strict: advisory gate promoted to blocking)"
+    echo "ci: FAILED"
     exit 1
 fi
 echo "ci: PASS"

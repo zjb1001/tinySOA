@@ -414,7 +414,7 @@ fi
     echo
     echo "### CI"
     echo
-    echo "Blocking tests: **PASS** (lint/typecheck remain advisory)."
+    echo "Blocking gates: **PASS** (tests + ruff + black + mypy)."
     echo
     echo '```'
     if grep -q "CI summary" "$CI_LOG"; then

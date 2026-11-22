@@ -8,19 +8,21 @@ tinySOA 当前采用 **本地 CI 脚本**（不依赖 GitHub Actions）。目标
 | 检查 | 默认行为 | 说明 |
 |---|---|---|
 | `pytest tests` | **阻断** | 任何失败退出码非 0 |
-| `ruff check` | 告警 | 未安装则 SKIP |
-| `black --check` | 告警 | 未安装则 SKIP |
-| `mypy src/tinysoa` | 告警 | 未安装则 SKIP |
+| `ruff check` | **阻断** | 未安装则 SKIP |
+| `black --check` | **阻断** | 未安装则 SKIP |
+| `mypy src/tinysoa` | **阻断** | 未安装则 SKIP |
 | examples smoke | 可选 | `--with-smoke` / `--smoke-only` |
 
-`--strict` 会把 ruff/black/mypy 的告警升级为阻断。等基线清理干净后再把默认值改成严格。
+默认即为严格模式。需要临时降级时使用 `--advisory` / `make ci-advisory`：
+pytest 仍然阻断，ruff/black/mypy 只记录 WARN。
 
 ## 常用命令
 
 ```bash
 # 推荐入口（根目录 Makefile）
-make ci                  # pytest 阻断 + 质量检查告警
-make ci-strict           # 全部阻断
+make ci                  # pytest + ruff/black/mypy 全部阻断（默认）
+make ci-advisory         # pytest 阻断，质量检查仅告警
+make ci-strict           # make ci 的兼容别名
 make ci-coverage         # pytest + coverage
 make test                # 只跑 pytest
 make lint                # ruff + black
@@ -29,7 +31,7 @@ make smoke               # examples 稳定冒烟组
 
 # 直接调用脚本
 bash scripts/ci.sh
-bash scripts/ci.sh --strict
+bash scripts/ci.sh --advisory
 bash scripts/ci.sh --tests-only
 bash scripts/ci.sh --with-smoke
 bash scripts/ci.sh --coverage

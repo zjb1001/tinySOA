@@ -248,8 +248,8 @@ def fragile_call():
 ## 本地 CI 与 Agent Flow
 
 ```bash
-make ci                  # pytest 阻断 + ruff/black/mypy 告警
-make ci-strict           # 全部阻断
+make ci                  # pytest + ruff/black/mypy 全部阻断（默认）
+make ci-advisory         # pytest 阻断，质量检查仅告警
 make smoke               # examples 稳定冒烟组
 
 # 任意 agent 适配器 + issue/task -> PR（详见 docs/agent-flow.md）

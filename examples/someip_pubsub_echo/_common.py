@@ -1,23 +1,54 @@
-"""SOME/IP Echo — 共享配置。
+"""SOME/IP Echo — shared configuration.
 
-两个独立进程通过同一个 MAPPING 找到彼此：
-  - publisher 通过 SD Offer 通告 (service_id=0x3333, instance=0x0001, eventgroup=0x0001)
-  - subscriber 通过 SD Find 发现同一个服务
+The application code only uses ``TOPIC``.  SOME/IP identities and endpoints
+live here, in the configuration layer, and are translated by
+``tinysoa.config.create_event_bus``.
 """
 
-from tinysoa.eventbus.someip import SomeIPTopicMapping
+from tinysoa.config import EventBusConfig, EventBusKind, TopicBinding
 
 TOPIC = "echo.hello"
 
-MAPPING = SomeIPTopicMapping(
-    service_id=0x3333,
-    instance_id=0x0001,
-    eventgroup_id=0x0001,
-    major_version=1,
-)
+SERVICE_ID = 0x3333
+INSTANCE_ID = 0x0001
+EVENTGROUP_ID = 0x0001
+MAJOR_VERSION = 1
 
 LOCAL_IP = "127.0.0.1"
 
 # 两个进程用不同端口，避免冲突
 PUBLISHER_PORT = 30900
 SUBSCRIBER_PORT = 30910
+
+
+def _config(*, is_publisher: bool) -> EventBusConfig:
+    return EventBusConfig(
+        kind=EventBusKind.SOMEIP,
+        service="echo",
+        bindings=(
+            TopicBinding(
+                TOPIC,
+                {
+                    "service_id": SERVICE_ID,
+                    "instance_id": INSTANCE_ID,
+                    "eventgroup_id": EVENTGROUP_ID,
+                    "major_version": MAJOR_VERSION,
+                },
+            ),
+        ),
+        options={
+            "local_ip": LOCAL_IP,
+            "publisher_port": PUBLISHER_PORT if is_publisher else SUBSCRIBER_PORT,
+            "is_publisher": is_publisher,
+        },
+    )
+
+
+def publisher_config() -> EventBusConfig:
+    """Bus config for the publisher process."""
+    return _config(is_publisher=True)
+
+
+def subscriber_config() -> EventBusConfig:
+    """Bus config for the subscriber process."""
+    return _config(is_publisher=False)

@@ -26,10 +26,10 @@ import asyncio
 import logging
 from datetime import datetime
 
+from tinysoa.config import create_event_bus
 from tinysoa.eventbus.message import EventMessage
-from tinysoa.eventbus.someip import SomeIPEventBus
 
-from ._common import LOCAL_IP, MAPPING, PUBLISHER_PORT, TOPIC
+from ._common import PUBLISHER_PORT, SERVICE_ID, TOPIC, publisher_config
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,18 +55,14 @@ async def main() -> None:
 
     logger.info(
         "starting (svc=0x%04x, port=%d, %d msgs @ %.1fs)",
-        MAPPING.service_id,
+        SERVICE_ID,
         PUBLISHER_PORT,
         count,
         interval,
     )
 
-    # is_publisher=True → SD Offer 通告
-    bus = SomeIPEventBus(
-        mappings={TOPIC: MAPPING},
-        local_ip=LOCAL_IP,
-        publisher_port=PUBLISHER_PORT,
-    )
+    # 应用只提供 topic；SOME/IP 身份由 publisher_config() 提供。
+    bus = create_event_bus(publisher_config())
     await bus.start()
     logger.info("started — SD Offer 已通告，等待 subscriber 发现 ...")
     await asyncio.sleep(2.0)  # 给 subscriber 时间做 SD FindSubscribe

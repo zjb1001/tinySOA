@@ -6,7 +6,17 @@ import logging
 import socket
 from dataclasses import dataclass
 from threading import Lock
-from typing import Awaitable, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import (
+    Awaitable,
+    Callable,
+    Coroutine,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+)
 
 from someip.config import Eventgroup
 from someip.header import _T_SOCKNAME, L4Protocols, SOMEIPHeader, SOMEIPMessageType
@@ -708,11 +718,16 @@ class SomeIPEventBus(ManagedEventBus):
         *,
         endpoint: Optional[SomeIPEndpoint] = None,
     ):
+        super().__init__()
         self.mappings = mappings
         self.logger = logging.getLogger(__name__)
 
         # Local subscriptions (topic -> list of handlers)
         self._subscriptions: Dict[str, List[Subscription]] = {}
+
+        # Background SD subscription tasks; kept referenced so they are never
+        # garbage-collected mid-flight and can be cancelled on stop().
+        self._background_tasks: Set[asyncio.Task[None]] = set()
 
         # SD, transports, publishers and subscriber can be shared with method
         # and field adapters through one endpoint.
@@ -761,6 +776,21 @@ class SomeIPEventBus(ManagedEventBus):
     def _subscriber(self, value: Optional[SomeIPSubscriber]) -> None:
         self._endpoint.subscriber = value
 
+    def _spawn_task(self, coro: Coroutine[object, object, None]) -> None:
+        """Run a background SD task and keep a strong reference to it."""
+        task = asyncio.create_task(coro)
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+
+    async def _cancel_background_tasks(self) -> None:
+        """Cancel and drain in-flight SD subscription tasks."""
+        tasks = list(self._background_tasks)
+        self._background_tasks.clear()
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
     async def start(self):
         """Initialize the shared SOME/IP endpoint (SD + transports)."""
         if self._endpoint.started:
@@ -770,11 +800,13 @@ class SomeIPEventBus(ManagedEventBus):
         self.logger.info("SomeIPEventBus started successfully")
 
     async def stop(self):
-        """Shutdown the shared SOME/IP endpoint when this bus owns it."""
+        """Cancel SD tasks and shut down the endpoint when this bus owns it."""
+        await self._cancel_background_tasks()
         if self._owns_endpoint and self._endpoint.started:
             self.logger.info("Stopping SomeIPEventBus...")
             await self._endpoint.stop()
             self.logger.info("SomeIPEventBus stopped")
+        self._clear_registrations()
 
     async def publish(self, message: EventMessage) -> None:
         """
@@ -826,6 +858,23 @@ class SomeIPEventBus(ManagedEventBus):
             on_notification=self._create_notification_handler(topic),
         )
 
+    async def _on_publisher_registered(self, topic: str) -> None:
+        """SOME/IP publisher registration is an SD Offer/announce."""
+        await self.register_topic(topic)
+
+    async def _on_publisher_unregistered(self, topic: str) -> None:
+        """Release the local publish gate.
+
+        pysomeip has no per-eventgroup StopOffer, so the SD offer remains until
+        the endpoint stops; the bus still refuses to publish this topic once
+        its last publisher registration is gone.
+        """
+        self.logger.info(
+            "Publisher registration released for topic %s; SD offer remains "
+            "until endpoint stop",
+            topic,
+        )
+
     def subscribe(self, topic: str, handler: EventHandler) -> Subscription:
         """
         Subscribe to a SOME/IP EventGroup.
@@ -856,7 +905,7 @@ class SomeIPEventBus(ManagedEventBus):
             self.logger.info(
                 f"[Sub #{seq_num}] Starting SOME/IP subscription for topic: {topic}"
             )
-            asyncio.create_task(self._start_subscription(mapping, topic, seq_num))
+            self._spawn_task(self._start_subscription(mapping, topic, seq_num))
 
         self._subscriptions[topic].append(sub)
         return sub
@@ -870,7 +919,7 @@ class SomeIPEventBus(ManagedEventBus):
                 # Stop SOME/IP subscription
                 mapping = self.mappings.get(subscription.topic)
                 if mapping and self._subscriber:
-                    asyncio.create_task(self._stop_subscription(mapping))
+                    self._spawn_task(self._stop_subscription(mapping))
 
     def get_subscribers_count(self, topic: str) -> int:
         """Return the number of local subscribers for a topic."""

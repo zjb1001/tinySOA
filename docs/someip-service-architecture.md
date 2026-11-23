@@ -45,19 +45,32 @@ from tinysoa.eventbus import SomeIPService
 
 service = SomeIPService(binding, event_mappings=EVENT_MAPPINGS)
 publisher = service.publisher("sensor.temperature")
-subscriber = service.subscriber("sensor.temperature")
+subscriber = service.subscriber("sensor.temperature", handler)
 
 await service.start()
+await service.register(publisher)       # SOME/IP: SD Offer
+await service.register(subscriber)      # SOME/IP: SD FindSubscribe + handler
 await publisher.publish({"value": 21.5})
-# subscriber.on(handler) 注册事件处理
 await service.stop()
 ```
+
+注册状态属于 bus；`publisher` / `subscriber` 只是携带 topic 与 handler 的句柄。
+`SomeIPService.start()` 只启动 endpoint/SD，不再自动注册 publisher；应用显式调用
+`service.register(...)`。未注册的 publisher 调用 `publish()` 会抛 `StateError`，
+`service.unregister(...)` 用于运行时撤销。
+
+对 SOME/IP 来说，`register(publisher)` 触发 SD Offer，`register(subscriber)`
+触发 SD FindSubscribe 并绑定 handler；两者返回时只代表控制面动作已发起，数据面
+仍需等待 SD 收敛。
 
 通用总线也提供 topic 门面：
 
 ```python
 publisher = bus.publisher("sensor.temperature")
-subscriber = bus.subscriber("sensor.temperature")
+subscriber = bus.subscriber("sensor.temperature", handler)
+
+await bus.register(publisher)
+await bus.register(subscriber)
 await publisher.publish({"value": 21.5})
 ```
 

@@ -44,17 +44,28 @@ make -C examples smoke-all
 | `someip_pubsub_many_pubs_one_sub` | PEER | 3 pub + 1 agg | `someip_pubsub_many_pubs_one_sub.*` | N pubs → 1 sub：多服务发现、聚合仪表盘 |
 | `someip_method_call` | PEER | server + client | `someip_method_call.{server,client}` | SOME/IP RPC（`SomeIPService` 门面） |
 
-应用层推荐使用门面：
+应用层推荐使用门面；注册状态属于 bus，句柄只携带 topic/handler：
 
 ```python
 publisher = bus.publisher("demo.topic")
-subscriber = bus.subscriber("demo.topic")
+subscriber = bus.subscriber("demo.topic", handler)
+
+await bus.register(publisher)
+await bus.register(subscriber)
+await publisher.publish({"value": 1})
 
 # 或 SOME/IP
 service = SomeIPService(binding, event_mappings=EVENT_MAPPINGS)
 publisher = service.publisher("demo.topic")
+subscriber = service.subscriber("demo.topic", handler)
+
+await service.start()
+await service.register(publisher)     # SD Offer
+await service.register(subscriber)    # SD FindSubscribe + handler
+await publisher.publish({"value": 1})
 ```
 
+`publisher.publish()` 在未注册时抛 `StateError`；`bus.unregister(...)` 撤销注册。
 低层 `bus.publish(EventMessage(...))` 保留给框架内部、测试和高级用法。
 
 ## 常用命令

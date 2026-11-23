@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Dict
 
 from tinysoa.core.errors import ValidationError
-from tinysoa.eventbus.bus import InMemoryEventBus, ManagedEventBus
+from tinysoa.eventbus.bus import ManagedEventBus
+from tinysoa.eventbus.memory import InMemoryEventBus
 from tinysoa.eventbus.tcp import TCPEventBus
 
 from .bindings import EventBusConfig, EventBusKind

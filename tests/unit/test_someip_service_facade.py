@@ -29,6 +29,10 @@ def _binding(*, methods=None) -> SomeIPServiceBinding:
     )
 
 
+async def _handler(_message) -> None:
+    return None
+
+
 def test_service_views_share_one_endpoint() -> None:
     endpoint = SomeIPEndpoint(publisher_port=30740)
     service = SomeIPService(
@@ -43,7 +47,30 @@ def test_service_views_share_one_endpoint() -> None:
     assert service.dispatcher._endpoint is endpoint
 
     assert isinstance(service.publisher(TOPIC), TopicPublisher)
-    assert isinstance(service.subscriber(TOPIC), TopicSubscriber)
+    assert isinstance(service.subscriber(TOPIC, _handler), TopicSubscriber)
+
+
+async def test_service_register_requires_start() -> None:
+    service = SomeIPService(
+        _binding(),
+        event_mappings={TOPIC: MAPPING},
+        endpoint=SomeIPEndpoint(publisher_port=30745),
+    )
+    publisher = service.publisher(TOPIC)
+
+    with pytest.raises(StateError, match="not started"):
+        await service.register(publisher)
+
+
+def test_service_subscriber_rejects_unknown_topic() -> None:
+    service = SomeIPService(
+        _binding(),
+        event_mappings={TOPIC: MAPPING},
+        endpoint=SomeIPEndpoint(publisher_port=30748),
+    )
+
+    with pytest.raises(NotFoundError):
+        service.subscriber("other.topic", _handler)
 
 
 def test_service_publisher_rejects_unknown_topic() -> None:

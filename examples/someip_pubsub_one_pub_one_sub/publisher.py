@@ -9,12 +9,12 @@ from datetime import datetime
 
 from tinysoa.eventbus import SomeIPService
 
-from ._common import (
+from .service_contract import (
     EVENT_MAPPINGS,
     PUBLISHER_PORT,
     SERVICE_ID,
     TOPIC,
-    service_binding,
+    publisher_config,
 )
 
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
@@ -49,8 +49,10 @@ async def main(argv=None) -> int:
         logger.error("--count must be positive")
         return 2
 
+    # Pure config: no socket or SD endpoint exists yet.
+    config = publisher_config(PUBLISHER_PORT)
     service = SomeIPService(
-        service_binding(server_port=PUBLISHER_PORT),
+        config,
         event_mappings=EVENT_MAPPINGS,
         is_publisher=True,
     )
@@ -63,8 +65,11 @@ async def main(argv=None) -> int:
         args.count,
         args.interval,
     )
+    # start() creates the endpoint, binds ports, and starts SD.
     await service.start()
-    logger.info("SD Offer started; waiting for subscriber")
+    # register() makes the SD Offer/announce.
+    await service.register(publisher)
+    logger.info("publisher registered; waiting for subscriber")
     try:
         await asyncio.sleep(2.0)
         for seq in range(args.count):

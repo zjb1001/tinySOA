@@ -64,6 +64,7 @@ async def main(argv=None) -> int:
         spec.publisher_port,
     )
     await service.start()
+    await service.register(publisher)
     log.info("SOME/IP stack initialized; waiting for subscribers via SD...")
 
     sent = 0

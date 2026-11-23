@@ -8,8 +8,13 @@
 ```python
 bus = create_event_bus(EventBusConfig(kind=EventBusKind.INMEMORY))
 await bus.start()
-bus.subscribe(TOPIC, handler)
-await bus.publish(EventMessage(topic=TOPIC, payload=...))
+
+publisher = bus.publisher(TOPIC)
+subscriber = bus.subscriber(TOPIC, handler)
+
+await bus.register(publisher)
+await bus.register(subscriber)
+await publisher.publish(...)
 await bus.stop()
 ```
 

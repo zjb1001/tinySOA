@@ -47,10 +47,10 @@ async def run_one_to_one(count: int = 3) -> ScenarioResult:
         received += 1
 
     publisher = bus.publisher(TOPIC)
-    subscriber = bus.subscriber(TOPIC)
-    subscriber.on(on_event)
+    subscriber = bus.subscriber(TOPIC, on_event)
     try:
-        await publisher.register()
+        await bus.register(publisher)
+        await bus.register(subscriber)
         for i in range(count):
             await publisher.publish({"from": "pub-1", "seq": i})
     finally:
@@ -68,11 +68,11 @@ async def run_one_to_many(subscribers: int = 3, count: int = 5) -> ScenarioResul
         async def on_event(_message: EventMessage, name: str = subscriber_id) -> None:
             delivered[name] += 1
 
-        bus.subscriber(TOPIC).on(on_event)
+        await bus.register(bus.subscriber(TOPIC, on_event))
 
     publisher = bus.publisher(TOPIC)
     try:
-        await publisher.register()
+        await bus.register(publisher)
         for i in range(count):
             await publisher.publish({"from": "pub-1", "seq": i})
     finally:
@@ -88,12 +88,12 @@ async def run_many_to_one(publishers: int = 3, count: int = 5) -> ScenarioResult
     async def on_event(message: EventMessage) -> None:
         received.append(message.payload)
 
-    bus.subscriber(TOPIC).on(on_event)
+    await bus.register(bus.subscriber(TOPIC, on_event))
     publishers_list = [bus.publisher(TOPIC) for _ in range(publishers)]
     total = publishers * count
     try:
         for publisher in publishers_list:
-            await publisher.register()
+            await bus.register(publisher)
         for seq in range(count):
             for index, publisher in enumerate(publishers_list, start=1):
                 payload = {"from": f"pub-{index}", "seq": seq}

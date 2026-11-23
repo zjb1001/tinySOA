@@ -8,12 +8,12 @@ import logging
 
 from tinysoa.eventbus import EventMessage, SomeIPService
 
-from ._common import (
+from .service_contract import (
     EVENT_MAPPINGS,
     SERVICE_ID,
     SUBSCRIBER_PORT,
     TOPIC,
-    service_binding,
+    subscriber_config,
 )
 
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
@@ -56,8 +56,10 @@ async def main(argv=None) -> int:
         logger.error("--want must be positive")
         return 2
 
+    # Pure config: no socket or SD endpoint exists yet.
+    config = subscriber_config(args.local_port)
     service = SomeIPService(
-        service_binding(local_port=args.local_port),
+        config,
         event_mappings=EVENT_MAPPINGS,
         is_publisher=False,
     )
@@ -68,6 +70,7 @@ async def main(argv=None) -> int:
         args.want,
         args.timeout,
     )
+    # start() creates the endpoint, binds ports, and starts SD.
     await service.start()
 
     received: list[dict] = []
@@ -80,7 +83,9 @@ async def main(argv=None) -> int:
         if len(received) >= args.want:
             done.set()
 
-    service.subscriber(TOPIC).on(on_event)
+    subscriber = service.subscriber(TOPIC, on_event)
+    # register() starts SD FindSubscribe and binds the handler.
+    await service.register(subscriber)
     try:
         await asyncio.wait_for(done.wait(), timeout=args.timeout)
         logger.info("SUCCESS received %d/%d", len(received), args.want)

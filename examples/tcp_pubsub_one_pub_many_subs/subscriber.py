@@ -75,7 +75,8 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
             msg.payload,
         )
 
-    sub = bus.subscribe(args.topic, handle)
+    subscriber = bus.subscriber(args.topic, handle)
+    await bus.register(subscriber)
     logger.info(
         "subscriber %s subscribed to '%s' on %s:%d",
         args.subscriber_id,
@@ -94,7 +95,7 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
     except asyncio.CancelledError:
         pass
     finally:
-        bus.unsubscribe(sub)
+        await bus.unregister(subscriber)
         await bus.stop()
         logger.info("subscriber %s disconnected", args.subscriber_id)
     return 0

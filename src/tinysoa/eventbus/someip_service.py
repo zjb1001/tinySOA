@@ -6,6 +6,7 @@ from tinysoa.api.service_api import MethodSelector
 from tinysoa.core.errors import NotFoundError, StateError
 from tinysoa.core.model import Message
 
+from .bus import EventHandler, TopicPublisher, TopicSubscriber
 from .someip import SomeIPEndpoint, SomeIPEventBus, SomeIPTopicMapping
 from .someip_method import (
     MethodHandler,
@@ -13,7 +14,6 @@ from .someip_method import (
     SomeIPMethodInvoker,
     SomeIPServiceBinding,
 )
-from .topic import TopicPublisher, TopicSubscriber
 
 
 class SomeIPService:
@@ -95,11 +95,13 @@ class SomeIPService:
             self._publishers[topic] = publisher
         return publisher
 
-    def subscriber(self, topic: str) -> TopicSubscriber:
-        """Return an event subscriber for ``topic``."""
+    def subscriber(self, topic: str, handler: EventHandler) -> TopicSubscriber:
+        """Return an event subscriber for ``topic`` and ``handler``."""
         if self._event_bus is None:
             raise StateError("SomeIPService has no event mappings")
-        return TopicSubscriber(self._event_bus, topic)
+        if topic not in self._event_bus.mappings:
+            raise NotFoundError(f"No event mapping for topic: {topic}")
+        return TopicSubscriber(self._event_bus, topic, handler)
 
     def method(self, name: str) -> Callable[[MethodHandler], MethodHandler]:
         """Decorator registering a server-side async method handler."""
@@ -109,6 +111,20 @@ class SomeIPService:
         """Register a server-side async method handler."""
         self._dispatcher.register(name, handler)
 
+    async def register(self, participant: object) -> None:
+        """Register an event publisher or subscriber with the service bus."""
+        if not self._started:
+            raise StateError("SomeIPService is not started")
+        if self._event_bus is None:
+            raise StateError("SomeIPService has no event mappings")
+        await self._event_bus.register(participant)
+
+    async def unregister(self, participant: object) -> None:
+        """Unregister an event publisher or subscriber from the service bus."""
+        if self._event_bus is None:
+            raise StateError("SomeIPService has no event mappings")
+        await self._event_bus.unregister(participant)
+
     async def start(self) -> None:
         """Start the shared endpoint, event bus, and registered methods."""
         if self._started:
@@ -117,8 +133,6 @@ class SomeIPService:
             await self._endpoint.start()
         if self._event_bus is not None:
             await self._event_bus.start()
-            for publisher in self._publishers.values():
-                await publisher.register()
         if self._dispatcher.has_handlers:
             await self._dispatcher.start()
         self._started = True

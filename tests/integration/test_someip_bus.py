@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -132,14 +132,12 @@ async def test_someip_bus_subscription_count():
         pass
 
     # Subscribe first time
-    with patch("asyncio.create_task"):
-        sub1 = bus.subscribe("test.topic", handler)
+    sub1 = bus.subscribe("test.topic", handler)
 
     assert bus.get_subscribers_count("test.topic") == 1
 
     # Subscribe second time
-    with patch("asyncio.create_task"):
-        sub2 = bus.subscribe("test.topic", handler)
+    sub2 = bus.subscribe("test.topic", handler)
 
     assert bus.get_subscribers_count("test.topic") == 2
 
@@ -149,6 +147,9 @@ async def test_someip_bus_subscription_count():
 
     bus.unsubscribe(sub2)
     assert bus.get_subscribers_count("test.topic") == 0
+
+    # Drain the SD background tasks spawned by subscribe/unsubscribe.
+    await bus._cancel_background_tasks()
 
 
 @pytest.mark.asyncio

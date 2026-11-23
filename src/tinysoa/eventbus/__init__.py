@@ -3,13 +3,15 @@ from .bus import (
     EventBus,
     EventBusBroker,
     EventHandler,
-    InMemoryEventBus,
     ManagedEventBus,
     Subscription,
+    TopicPublisher,
+    TopicSubscriber,
     Topology,
     get_event_bus,
     set_event_bus,
 )
+from .memory import InMemoryEventBus
 from .message import EventMessage
 from .stream import MessageStream
 from .tcp import (
@@ -19,7 +21,6 @@ from .tcp import (
     TCPEventBusServer,
     TCPMessageStream,
 )
-from .topic import TopicPublisher, TopicSubscriber
 
 # SomeIPEventBus depends on the vendored pysomeip package (third_party/pysomeip/).
 # It is the heavyweight of the three stacks; import it lazily so that a missing

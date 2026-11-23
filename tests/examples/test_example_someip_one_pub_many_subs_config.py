@@ -34,7 +34,11 @@ def test_subscriber_service_exposes_topic_views() -> None:
         event_mappings=EVENT_MAPPINGS,
         is_publisher=False,
     )
-    assert isinstance(service.subscriber(TOPIC), TopicSubscriber)
+
+    async def _handler(_message):
+        return None
+
+    assert isinstance(service.subscriber(TOPIC, _handler), TopicSubscriber)
     assert service.event_bus is not None
     assert service.event_bus.mappings[TOPIC].service_id == SERVICE_ID
 

@@ -4,12 +4,12 @@ from uuid import uuid4
 import pytest
 
 from tinysoa.eventbus.bus import (
-    InMemoryEventBus,
     Subscription,
     TopicMatcher,
     get_event_bus,
     set_event_bus,
 )
+from tinysoa.eventbus.memory import InMemoryEventBus
 from tinysoa.eventbus.message import EventMessage
 
 

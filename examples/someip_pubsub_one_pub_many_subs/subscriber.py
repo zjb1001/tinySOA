@@ -86,7 +86,8 @@ async def main(argv=None) -> int:
         if len(received) >= args.want:
             done.set()
 
-    service.subscriber(TOPIC).on(on_event)
+    subscriber = service.subscriber(TOPIC, on_event)
+    await service.register(subscriber)
     try:
         await asyncio.wait_for(done.wait(), timeout=args.timeout)
         logger.info(

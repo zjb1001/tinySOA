@@ -26,6 +26,7 @@ class BrokerEventBus(ManagedEventBus):
     topology = Topology.BROKER
 
     def __init__(self, stream: MessageStream, *, name: str = "broker"):
+        super().__init__()
         self._stream = stream
         self._name = name
         self._reader_task: Optional[asyncio.Task[None]] = None
@@ -61,6 +62,7 @@ class BrokerEventBus(ManagedEventBus):
                 pass
         await self._stream.close()
         self._handlers.clear()
+        self._clear_registrations()
 
     async def publish(self, message: EventMessage) -> None:
         """Send one event through the broker stream."""

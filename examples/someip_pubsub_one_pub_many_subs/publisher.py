@@ -65,7 +65,8 @@ async def main(argv=None) -> int:
         args.interval,
     )
     await service.start()
-    logger.info("SD Offer started; waiting for subscribers")
+    await service.register(publisher)
+    logger.info("publisher registered; waiting for subscribers")
     try:
         await asyncio.sleep(2.0)
         for seq in range(args.count):

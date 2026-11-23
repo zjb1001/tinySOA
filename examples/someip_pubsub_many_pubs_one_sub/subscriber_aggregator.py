@@ -130,15 +130,16 @@ async def main(argv=None) -> int:
         SENSOR_MAPPINGS, local_ip=LOCAL_IP, publisher_port=args.port, is_publisher=False
     )
     aggregator = SensorAggregator(SENSORS)
-    subscriptions: List = []
+    subscribers: List = []
 
     logger.info("starting aggregator on %s, port base %d", LOCAL_IP, args.port)
     await bus.start()
     logger.info("SOME/IP stack initialized; discovering sensors via SD...")
 
     for key, spec in SENSORS.items():
-        sub = bus.subscribe(spec.topic, aggregator.make_handler(key))
-        subscriptions.append(sub)
+        subscriber = bus.subscriber(spec.topic, aggregator.make_handler(key))
+        await bus.register(subscriber)
+        subscribers.append(subscriber)
         logger.info("subscribed to %s (service 0x%04x)", spec.topic, spec.service_id)
 
     try:
@@ -148,8 +149,8 @@ async def main(argv=None) -> int:
         logger.info("shutdown signal received")
     finally:
         logger.info("cleaning up subscriptions...")
-        for sub in subscriptions:
-            bus.unsubscribe(sub)
+        for subscriber in subscribers:
+            await bus.unregister(subscriber)
         await bus.stop()
         logger.info(
             "aggregator stopped after %d total reading(s)", aggregator.total_readings()

@@ -8,8 +8,8 @@
 ```text
 someip_pubsub_one_pub_many_subs/
   _common.py      topic 与 SOME/IP ID / 本地端口配置
-  publisher.py    SD Offer + publish
-  subscriber.py   SD FindSubscribe + async handler
+  publisher.py    SD Offer + service.register(publisher)
+  subscriber.py   SD FindSubscribe + service.register(subscriber)
   tmux.sh         左: publisher / 右上: sub-1 / 右下: sub-2
   Makefile        start/stop/status/logs/smoke/tmux
 ```
@@ -17,6 +17,7 @@ someip_pubsub_one_pub_many_subs/
 应用侧通过 `SomeIPService` 门面使用，只写 `TOPIC`：
 
 ```python
+# Publisher 进程
 service = SomeIPService(
     service_binding(server_port=PUBLISHER_PORT),
     event_mappings=EVENT_MAPPINGS,
@@ -24,7 +25,22 @@ service = SomeIPService(
 )
 publisher = service.publisher(TOPIC)
 await service.start()
+await service.register(publisher)      # SD Offer
 await publisher.publish({"value": 21.5})
+
+
+# 每个 Subscriber 进程独立注册
+async def on_event(message: EventMessage) -> None:
+    ...
+
+service = SomeIPService(
+    service_binding(local_port=args.local_port),
+    event_mappings=EVENT_MAPPINGS,
+    is_publisher=False,
+)
+subscriber = service.subscriber(TOPIC, on_event)
+await service.start()
+await service.register(subscriber)     # SD FindSubscribe + handler
 ```
 
 SOME/IP ID 在 `_common.py` 的 `MAPPING` / `service_binding()` 中。

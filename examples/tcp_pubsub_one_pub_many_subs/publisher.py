@@ -21,7 +21,7 @@ import sys
 from datetime import datetime
 from typing import Optional, Sequence
 
-from tinysoa.eventbus import EventMessage, TCPEventBus
+from tinysoa.eventbus import TCPEventBus
 
 logger = logging.getLogger("tinysoa.example.pubsub.publisher")
 
@@ -81,14 +81,17 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
         args.count,
         args.topic,
     )
+    publisher = bus.publisher(args.topic)
+    await bus.register(publisher)
     try:
         for i in range(args.count):
             payload = {"i": i, "ts": datetime.now().isoformat()}
-            await bus.publish(EventMessage(topic=args.topic, payload=payload))
+            await publisher.publish(payload)
             logger.info("published to %s: %s", args.topic, payload)
             if i < args.count - 1:
                 await asyncio.sleep(args.interval)
     finally:
+        await bus.unregister(publisher)
         await bus.stop()
     return 0
 

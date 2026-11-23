@@ -24,7 +24,8 @@ import pytest
 # --------------------------------------------------------------------------- #
 
 _SOMEIP_EXAMPLE_MODS: tuple[str, ...] = (
-    "examples.someip_pubsub_many_pubs_one_sub._common",
+    "examples.someip_pubsub_many_pubs_one_sub.sensor_contract",
+    "examples.someip_pubsub_many_pubs_one_sub.demo_support",
     "examples.someip_pubsub_many_pubs_one_sub.publisher1_temperature",
     "examples.someip_pubsub_many_pubs_one_sub.publisher2_humidity",
     "examples.someip_pubsub_many_pubs_one_sub.publisher3_pressure",
@@ -51,9 +52,9 @@ def test_someip_example_module_imports_cleanly(modname: str) -> None:
 
 
 @pytest.fixture(scope="module")
-def _common() -> object:
-    """Load ``_common`` once for the configuration-consistency tests."""
-    from examples.someip_pubsub_many_pubs_one_sub import _common as mod
+def contract() -> object:
+    """Load the sensor contract once for consistency tests."""
+    from examples.someip_pubsub_many_pubs_one_sub import sensor_contract as mod
 
     return mod
 
@@ -61,25 +62,25 @@ def _common() -> object:
 class TestSensorConfigIntegrity:
     """Each sensor's configuration must be internally consistent."""
 
-    def test_service_ids_are_unique(self, _common) -> None:
-        ids = [s.service_id for s in _common.SENSORS.values()]
+    def test_service_ids_are_unique(self, contract) -> None:
+        ids = [s.service_id for s in contract.SENSORS.values()]
         assert len(ids) == len(set(ids)), f"duplicate service_ids: {ids}"
 
-    def test_publisher_ports_are_unique(self, _common) -> None:
-        ports = [s.publisher_port for s in _common.SENSORS.values()]
+    def test_publisher_ports_are_unique(self, contract) -> None:
+        ports = [s.publisher_port for s in contract.SENSORS.values()]
         assert len(ports) == len(set(ports)), f"duplicate ports: {ports}"
 
-    def test_every_sensor_has_valid_mapping(self, _common) -> None:
+    def test_every_sensor_has_valid_mapping(self, contract) -> None:
         from tinysoa.eventbus.someip import SomeIPTopicMapping
 
-        for key, sensor in _common.SENSORS.items():
+        for key, sensor in contract.SENSORS.items():
             assert isinstance(
                 sensor.mapping, SomeIPTopicMapping
             ), f"{key}: mapping is not a SomeIPTopicMapping"
 
     @pytest.mark.parametrize("key", sorted(("temperature", "humidity", "pressure")))
-    def test_sensor_has_required_fields(self, _common, key: str) -> None:
-        sensor = _common.SENSORS[key]
+    def test_sensor_has_required_fields(self, contract, key: str) -> None:
+        sensor = contract.SENSORS[key]
         assert sensor.service_id > 0
         assert sensor.publisher_port > 0
         assert sensor.topic
@@ -89,22 +90,22 @@ class TestSensorConfigIntegrity:
 class TestTopicMappingConsistency:
     """SENSOR_MAPPINGS must map topic → the matching sensor's identity."""
 
-    def test_mapping_count_matches_sensors(self, _common) -> None:
-        assert len(_common.SENSOR_MAPPINGS) == len(_common.SENSORS)
+    def test_mapping_count_matches_sensors(self, contract) -> None:
+        assert len(contract.SENSOR_MAPPINGS) == len(contract.SENSORS)
 
-    def test_each_topic_points_to_correct_service_id(self, _common) -> None:
-        for key, sensor in _common.SENSORS.items():
-            mapping = _common.SENSOR_MAPPINGS[sensor.topic]
+    def test_each_topic_points_to_correct_service_id(self, contract) -> None:
+        for key, sensor in contract.SENSORS.items():
+            mapping = contract.SENSOR_MAPPINGS[sensor.topic]
             assert mapping.service_id == sensor.service_id
             assert mapping.instance_id == 0x0001
 
-    def test_instance_and_eventgroup_id_are_consistent(self, _common) -> None:
-        from examples.someip_pubsub_many_pubs_one_sub._common import (
+    def test_instance_and_eventgroup_id_are_consistent(self, contract) -> None:
+        from examples.someip_pubsub_many_pubs_one_sub.sensor_contract import (
             EVENTGROUP_ID,
             INSTANCE_ID,
         )
 
-        for mapping in _common.SENSOR_MAPPINGS.values():
+        for mapping in contract.SENSOR_MAPPINGS.values():
             assert mapping.instance_id == INSTANCE_ID
             assert mapping.eventgroup_id == EVENTGROUP_ID
 

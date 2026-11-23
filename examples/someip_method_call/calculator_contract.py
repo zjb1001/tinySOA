@@ -1,8 +1,7 @@
-"""SOME/IP Calculator RPC — 共享配置。
+"""Shared service contract for the SOME/IP Calculator RPC example.
 
-Server 和 Client 两个独立进程通过同一份配置找到彼此：
-  - Server 通过 SD Offer 通告 service_id=0x4444，包含 3 个 method
-  - Client 通过 SD Find 发现服务，发起 REQUEST 并等待 RESPONSE
+Server and client are separate processes but use the same service identity and
+method-id table, so discovery and REQUEST/RESPONSE matching stay consistent.
 """
 
 from __future__ import annotations
@@ -13,14 +12,14 @@ LOCAL_IP = "127.0.0.1"
 SERVER_PORT = 30950
 CLIENT_PORT = 30960
 
-# SOME/IP 服务标识
+# SOME/IP service identity.
 SERVICE_NAME = "calculator"
 SERVICE_ID = 0x4444
 INSTANCE_ID = 0x0001
 MAJOR_VERSION = 1
 MINOR_VERSION = 0
 
-# Method ID 映射表（Server 和 Client 必须一致）
+# Method ID map; server and client must agree.
 METHODS = {
     "add": 0x0001,
     "subtract": 0x0002,
@@ -28,13 +27,13 @@ METHODS = {
 }
 
 
-def binding(
+def _config(
     *,
     local_port: int = 0,
     server_port: int = 0,
     timeout: float = 5.0,
 ) -> SomeIPServiceBinding:
-    """Build the shared SOME/IP service binding."""
+    """Build a pure configuration object; no I/O or socket binding happens."""
     return SomeIPServiceBinding(
         name=SERVICE_NAME,
         service_id=SERVICE_ID,
@@ -47,3 +46,13 @@ def binding(
         server_port=server_port,
         timeout=timeout,
     )
+
+
+def server_config(server_port: int) -> SomeIPServiceBinding:
+    """Server endpoint: advertise the calculator service."""
+    return _config(server_port=server_port)
+
+
+def client_config(local_port: int, timeout: float = 5.0) -> SomeIPServiceBinding:
+    """Client endpoint: discover and invoke the calculator service."""
+    return _config(local_port=local_port, timeout=timeout)

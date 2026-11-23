@@ -17,26 +17,30 @@
 
 ```text
 someip_method_call/
-  _common.py    SomeIPServiceBinding：服务/方法/端口配置
-  server.py     SomeIPMethodDispatcher + async method handlers
-  client.py     SomeIPMethodInvoker + 3 次 RPC
-  tmux.sh       左: Server / 右: Client
-  Makefile      start/stop/status/logs/smoke/tmux
+  calculator_contract.py  server/client 共享的 service 与 method ID
+  server.py               SomeIPService + async method handlers
+  client.py               SomeIPService.invoke + 3 次 RPC
+  tmux.sh                 左: Server / 右: Client
+  Makefile                start/stop/status/logs/smoke/tmux
 ```
 
 应用代码只写逻辑方法名：
 
 ```python
-# server
-dispatcher = SomeIPMethodDispatcher(binding(server_port=30950))
+# server.py
+service = SomeIPService(server_config(30950), is_publisher=True)
 
-@dispatcher.method("add")
+@service.method("add")
 async def add(payload: dict) -> dict:
     return {"result": payload["a"] + payload["b"]}
 
-# client
-invoker = SomeIPMethodInvoker(binding(local_port=30960))
-response = await invoker.invoke("calculator", "add", {"a": 10, "b": 7})
+await service.start()
+
+
+# client.py
+service = SomeIPService(client_config(30960), is_publisher=False)
+await service.start()
+response = await service.invoke("add", {"a": 10, "b": 7})
 ```
 
 SD、REQUEST/RESPONSE、session 匹配、JSON 编解码、错误响应都由框架处理。

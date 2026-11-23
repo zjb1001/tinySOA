@@ -13,13 +13,8 @@ import sys
 
 from tinysoa.eventbus import SomeIPService
 
-from ._common import (
-    INSTANCE_ID,
-    LOG_LEVELS,
-    SENSORS,
-    configure_logging,
-    install_quiet_teardown,
-)
+from .demo_support import LOG_LEVELS, configure_logging, install_quiet_teardown
+from .sensor_contract import INSTANCE_ID, SENSORS
 
 
 def parse_args(argv=None) -> argparse.Namespace:
@@ -52,7 +47,7 @@ async def main(argv=None) -> int:
     period = spec.interval if args.interval is None else args.interval
 
     service = SomeIPService(
-        spec.binding,
+        spec.publisher_config,
         event_mappings={spec.topic: spec.mapping},
         is_publisher=True,
     )

@@ -1,23 +1,13 @@
-"""SOME/IP multi-publisher demo — shared configuration.
+"""Shared sensor service contract for the multi-publisher demo.
 
 Single source of truth for the three sensor services (temperature / humidity /
-pressure): their SOME/IP identity (service / instance / eventgroup ids), the
-tinySOA topic, the unicast port base, the payload shape and the sampling
-cadence. The three publisher scripts and the aggregator subscriber all import
-from here so the topic <-> service-id <-> port mapping can never drift between
-them.
-
-Run convention (set ``PYTHONPATH`` so both ``someip`` and ``tinysoa`` resolve
-from source; run each script from this directory):
-
-    export PYTHONPATH=$REPO/src:$REPO/tinySOA/src
-    python -m examples.someip_pubsub_many_pubs_one_sub.publisher1_temperature     # or publisher2/3, subscriber_aggregator
+pressure): their SOME/IP identity, tinySOA topic, unicast port base, payload
+shape, and sampling cadence.  The publisher scripts and the aggregator all
+import this contract so the topic <-> service-id <-> port mapping cannot drift.
 """
 
 from __future__ import annotations
 
-import asyncio
-import logging
 import random
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
@@ -31,47 +21,6 @@ LOCAL_IP = "127.0.0.1"
 INSTANCE_ID = 0x0001
 EVENTGROUP_ID = 0x0001
 MAJOR_VERSION = 1
-
-_LOG_FORMAT = "%(asctime)s.%(msecs)03d | %(name)s | %(levelname)s | %(message)s"
-_LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
-
-#: Valid logging level tokens accepted on the CLI.
-LOG_LEVELS: Tuple[str, ...] = ("DEBUG", "INFO", "WARNING", "ERROR")
-
-
-def configure_logging(level: str = "INFO", name: str = "someip.demo") -> logging.Logger:
-    """Configure root logging once and return a named logger."""
-    logging.basicConfig(level=level, format=_LOG_FORMAT, datefmt=_LOG_DATEFMT)
-    return logging.getLogger(name)
-
-
-def install_quiet_teardown() -> None:
-    """Silence benign teardown races in the underlying SOME/IP stack.
-
-    When ``SomeIPEventBus.stop()`` closes the SD transports, two kinds of
-    post-delivery noise can surface (delivery has already succeeded by then):
-
-    * an in-flight periodic ``sendto`` touching the loop after shutdown begins,
-      raising ``AttributeError: 'NoneType' object has no attribute
-      'call_exception_handler'``;
-    * the SD announcer's ``connection_lost`` double-stopping an already-stopped
-      task, raising ``RuntimeError: task already stopped``.
-
-    Both originate in the pysomeip SD layer during teardown only. Install this
-    handler to drop just those two messages while still logging every real
-    error.
-    """
-    loop = asyncio.get_running_loop()
-
-    def _handler(loop, context) -> None:  # type: ignore[no-untyped-def]
-        exc = context.get("exception")
-        if exc is not None:
-            message = str(exc)
-            if "call_exception_handler" in message or "task already stopped" in message:
-                return
-        loop.default_exception_handler(context)
-
-    loop.set_exception_handler(_handler)
 
 
 @dataclass(frozen=True)
@@ -111,8 +60,8 @@ class SensorSpec:
         )
 
     @property
-    def binding(self) -> SomeIPServiceBinding:
-        """The service binding used by the publisher process."""
+    def publisher_config(self) -> SomeIPServiceBinding:
+        """Publisher endpoint for this sensor service."""
         return SomeIPServiceBinding(
             name=self.key,
             service_id=self.service_id,

@@ -7,24 +7,23 @@
 
 ```text
 someip_pubsub_one_pub_many_subs/
-  _common.py      topic 与 SOME/IP ID / 本地端口配置
-  publisher.py    SD Offer + service.register(publisher)
-  subscriber.py   SD FindSubscribe + service.register(subscriber)
-  tmux.sh         左: publisher / 右上: sub-1 / 右下: sub-2
-  Makefile        start/stop/status/logs/smoke/tmux
+  service_contract.py  publisher/subscriber 共享的 topic + SOME/IP ID
+  publisher.py         SD Offer + service.register(publisher)
+  subscriber.py        SD FindSubscribe + service.register(subscriber)
+  tmux.sh              左: publisher / 右上: sub-1 / 右下: sub-2
+  Makefile             start/stop/status/logs/smoke/tmux
 ```
 
-应用侧通过 `SomeIPService` 门面使用，只写 `TOPIC`：
+`service_contract.py` 是 publisher 和多个 subscriber 的共同契约；两端分别通过
+`publisher_config()` / `subscriber_config()` 获取符合自己角色的 endpoint 配置。
 
 ```python
 # Publisher 进程
-service = SomeIPService(
-    service_binding(server_port=PUBLISHER_PORT),
-    event_mappings=EVENT_MAPPINGS,
-    is_publisher=True,
-)
+config = publisher_config(PUBLISHER_PORT)
+service = SomeIPService(config, event_mappings=EVENT_MAPPINGS, is_publisher=True)
 publisher = service.publisher(TOPIC)
-await service.start()
+
+await service.start()                  # 创建 endpoint / 绑定端口 / 启动 SD
 await service.register(publisher)      # SD Offer
 await publisher.publish({"value": 21.5})
 
@@ -33,17 +32,13 @@ await publisher.publish({"value": 21.5})
 async def on_event(message: EventMessage) -> None:
     ...
 
-service = SomeIPService(
-    service_binding(local_port=args.local_port),
-    event_mappings=EVENT_MAPPINGS,
-    is_publisher=False,
-)
+config = subscriber_config(args.local_port)
+service = SomeIPService(config, event_mappings=EVENT_MAPPINGS, is_publisher=False)
 subscriber = service.subscriber(TOPIC, on_event)
-await service.start()
+
+await service.start()                  # 创建 endpoint / 绑定端口 / 启动 SD
 await service.register(subscriber)     # SD FindSubscribe + handler
 ```
-
-SOME/IP ID 在 `_common.py` 的 `MAPPING` / `service_binding()` 中。
 
 ## 运行
 

@@ -17,7 +17,7 @@ from typing import Optional, Sequence
 
 from tinysoa.eventbus import SomeIPService
 
-from ._common import CLIENT_PORT, LOCAL_IP, binding
+from .calculator_contract import CLIENT_PORT, LOCAL_IP, client_config
 
 logger = logging.getLogger("calc.client")
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
@@ -55,7 +55,7 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
     )
 
     service = SomeIPService(
-        binding(local_port=args.port, timeout=5.0),
+        client_config(args.port, timeout=5.0),
         local_ip=args.host,
         is_publisher=False,
     )

@@ -30,6 +30,12 @@ make -C examples smoke-all
 | `one_pub_many_subs` | 1 publisher → N subscribers |
 | `many_pubs_one_sub` | N publishers → 1 subscriber |
 
+多进程案例共享的配置模块按领域命名，不使用 `_common.py`：
+
+- `service_contract.py`：单服务 topic / SOME/IP ID / 角色相关的 endpoint 配置
+- `sensor_contract.py`：多 sensor 服务的 identity / topic / port 契约
+- `calculator_contract.py`：RPC 服务的 method ID 与 server/client 配置
+
 ## 案例目录
 
 | 案例 | 拓扑 | 进程 | 入口 | 观察重点 |

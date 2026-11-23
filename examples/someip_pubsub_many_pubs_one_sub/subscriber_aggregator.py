@@ -27,15 +27,8 @@ from typing import Awaitable, Callable, Dict, List
 from tinysoa.eventbus.message import EventMessage
 from tinysoa.eventbus.someip import SomeIPEventBus
 
-from ._common import (
-    LOCAL_IP,
-    LOG_LEVELS,
-    SENSOR_MAPPINGS,
-    SENSORS,
-    SensorSpec,
-    configure_logging,
-    install_quiet_teardown,
-)
+from .demo_support import LOG_LEVELS, configure_logging, install_quiet_teardown
+from .sensor_contract import LOCAL_IP, SENSOR_MAPPINGS, SENSORS, SensorSpec
 
 logger = logging.getLogger("someip.demo.aggregator")
 

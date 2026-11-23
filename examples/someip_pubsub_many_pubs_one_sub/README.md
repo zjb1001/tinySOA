@@ -61,6 +61,20 @@ This example demonstrates how multiple SOME/IP service publishers communicate wi
 - Receives data from all publishers simultaneously
 - Aggregates and logs sensor readings
 
+## 目录
+
+```text
+someip_pubsub_many_pubs_one_sub/
+  sensor_contract.py     三个 sensor 的 topic / service_id / port 契约
+  demo_support.py        logging 与 teardown 辅助
+  publisher1_temperature.py
+  publisher2_humidity.py
+  publisher3_pressure.py
+  subscriber_aggregator.py
+  tmux.sh                四窗格可视化
+  Makefile               start/stop/status/logs/smoke/tmux
+```
+
 ## Prerequisites
 
 `tinysoa` and `someip` (pysomeip) resolve from source — set `PYTHONPATH` to both
@@ -147,9 +161,12 @@ python -m examples.someip_pubsub_many_pubs_one_sub.subscriber_aggregator
 
 ## Configuration
 
-You can modify the local IP address in the scripts:
+Sensor identity, topics, ports, and sampling defaults live in
+`sensor_contract.py`:
+
 ```python
 LOCAL_IP = "127.0.0.1"  # Change to your network interface
+SENSORS = {...}          # topic / service_id / publisher_port / payload shape
 ```
 
 ## Requirements

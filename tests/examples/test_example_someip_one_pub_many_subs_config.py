@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from examples.someip_pubsub_one_pub_many_subs._common import (
+from examples.someip_pubsub_one_pub_many_subs.publisher import (
+    parse_args as parse_publisher_args,
+)
+from examples.someip_pubsub_one_pub_many_subs.service_contract import (
     EVENT_MAPPINGS,
     SERVICE_ID,
     TOPIC,
-    service_binding,
-)
-from examples.someip_pubsub_one_pub_many_subs.publisher import (
-    parse_args as parse_publisher_args,
+    publisher_config,
+    subscriber_config,
 )
 from examples.someip_pubsub_one_pub_many_subs.subscriber import (
     parse_args as parse_subscriber_args,
@@ -19,7 +20,7 @@ from tinysoa.eventbus import SomeIPService, TopicPublisher, TopicSubscriber
 
 def test_publisher_service_exposes_topic_views() -> None:
     service = SomeIPService(
-        service_binding(server_port=30920),
+        publisher_config(30920),
         event_mappings=EVENT_MAPPINGS,
         is_publisher=True,
     )
@@ -30,7 +31,7 @@ def test_publisher_service_exposes_topic_views() -> None:
 
 def test_subscriber_service_exposes_topic_views() -> None:
     service = SomeIPService(
-        service_binding(local_port=30931),
+        subscriber_config(30931),
         event_mappings=EVENT_MAPPINGS,
         is_publisher=False,
     )

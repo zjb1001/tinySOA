@@ -10,6 +10,7 @@ from tinysoa.core.errors import DependencyError, StateError
 from tinysoa.core.model import Service, ServiceStatus
 from tinysoa.runtime.container import Container
 from tinysoa.runtime.dependency import DependencyResolver
+from tinysoa.runtime.internal_events import InternalEvent, InternalEventDispatcher
 
 
 class HealthStatus(str, Enum):
@@ -70,10 +71,12 @@ class LifecycleManager:
         health_checker: Optional[HealthChecker] = None,
         *,
         strict_dependencies: bool = False,
+        internal_events: Optional[InternalEventDispatcher] = None,
     ):
         self._container = container
         self._health_checker = health_checker or DefaultHealthChecker()
         self._strict_dependencies = strict_dependencies
+        self._internal_events = internal_events
         self._resolver = DependencyResolver(container, strict=strict_dependencies)
 
         self._on_start_hooks: List[LifecycleHook] = []
@@ -84,6 +87,11 @@ class LifecycleManager:
     def dependency_resolver(self) -> DependencyResolver:
         """Return the resolver used for ordered startup and shutdown."""
         return self._resolver
+
+    @property
+    def internal_events(self) -> Optional[InternalEventDispatcher]:
+        """Return the optional control-plane event dispatcher."""
+        return self._internal_events
 
     def add_on_start_hook(self, hook: LifecycleHook) -> None:
         """Add a hook to be called after service starts."""
@@ -172,6 +180,55 @@ class LifecycleManager:
             if service is not None and service.status != ServiceStatus.TERMINATED:
                 self.terminate_service(service_id)
 
+    async def astart_service(self, service_id: int) -> None:
+        """Start a service and publish ``SERVICE_READY`` / dependency events."""
+        self.start_service(service_id)
+        service = self._container.get_service(service_id)
+        if service is not None:
+            await self._publish_ready(service)
+
+    async def astop_service(self, service_id: int) -> None:
+        """Stop a service and publish ``SERVICE_STOPPED`` / dependency events."""
+        self.stop_service(service_id)
+        service = self._container.get_service(service_id)
+        if service is not None:
+            await self._publish_stopped(service, terminated=False)
+
+    async def aterminate_service(self, service_id: int) -> None:
+        """Terminate a service and publish ``SERVICE_STOPPED``."""
+        self.terminate_service(service_id)
+        service = self._container.get_service(service_id)
+        if service is not None:
+            await self._publish_stopped(service, terminated=True)
+
+    async def astart_all(self) -> None:
+        """Start all services in dependency order and publish events."""
+        for service_id in self._resolver.startup_order():
+            service = self._container.get_service(service_id)
+            if service is None:
+                continue
+            if service.status in (
+                ServiceStatus.INIT,
+                ServiceStatus.REGISTERED,
+                ServiceStatus.STOPPED,
+            ):
+                self._ensure_dependencies(service)
+                await self.astart_service(service_id)
+
+    async def astop_all(self) -> None:
+        """Stop all running services in reverse dependency order."""
+        for service_id in self._resolver.shutdown_order():
+            service = self._container.get_service(service_id)
+            if service is not None and service.status == ServiceStatus.RUNNING:
+                await self.astop_service(service_id)
+
+    async def aterminate_all(self) -> None:
+        """Terminate all services in reverse dependency order."""
+        for service_id in self._resolver.shutdown_order():
+            service = self._container.get_service(service_id)
+            if service is not None and service.status != ServiceStatus.TERMINATED:
+                await self.aterminate_service(service_id)
+
     def _ensure_dependencies(self, service: Service) -> None:
         """Reject starting a service before its local required dependencies run.
 
@@ -190,6 +247,46 @@ class LifecycleManager:
                     f"{dependency_service.name!r} ({dependency.service_id:#x}) "
                     f"to be RUNNING, got {dependency_service.status.value}"
                 )
+
+    async def _publish_ready(self, service: Service) -> None:
+        if self._internal_events is None:
+            return
+        await self._internal_events.publish(
+            InternalEvent.service_ready(service.id, name=service.name)
+        )
+        for dependent_id in self._resolver.dependents_of(service.id):
+            await self._internal_events.publish(
+                InternalEvent.dependency_satisfied(
+                    dependent_id, service.id, dependency_name=service.name
+                )
+            )
+
+    async def _publish_stopped(self, service: Service, *, terminated: bool) -> None:
+        if self._internal_events is None:
+            return
+        await self._internal_events.publish(
+            InternalEvent.service_stopped(
+                service.id, terminated=terminated, name=service.name
+            )
+        )
+        for dependent_id in self._resolver.dependents_of(service.id):
+            await self._internal_events.publish(
+                InternalEvent.dependency_lost(
+                    dependent_id,
+                    service.id,
+                    required=self._dependency_is_required(dependent_id, service.id),
+                    dependency_name=service.name,
+                )
+            )
+
+    def _dependency_is_required(self, dependent_id: int, dependency_id: int) -> bool:
+        dependent = self._container.get_service(dependent_id)
+        if dependent is None:
+            return True
+        for dependency in dependent.dependencies:
+            if dependency.service_id == dependency_id:
+                return dependency.required
+        return True
 
     def check_health(self, service_id: int) -> HealthCheckResult:
         """Check health of a specific service."""

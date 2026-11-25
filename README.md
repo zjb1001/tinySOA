@@ -225,6 +225,31 @@ lifecycle.terminate_all()  # → TERMINATED
 `RUNNING` 时启动服务；`DependencyResolver` 另外提供 `startup_order()` /
 `startup_layers()` / `shutdown_order()`，便于自行编排并行启动。
 
+#### 控制面事件与依赖等待（可选）
+
+生命周期事件不经过业务 `EventBus`，而是使用进程内、强类型的具体分发器
+（没有 ABC、没有序列化、没有网络传输）：
+
+```python
+from tinysoa.runtime import (
+    DependencyCoordinator,
+    InternalEventDispatcher,
+    LifecycleManager,
+)
+
+dispatcher = InternalEventDispatcher()
+lifecycle = LifecycleManager(container, internal_events=dispatcher)
+
+# 异步生命周期方法会发布 SERVICE_READY / SERVICE_STOPPED / DEPENDENCY_* 事件
+await lifecycle.astart_all()
+
+# 远程依赖：先订阅事件，再用本地状态快照补齐已满足的依赖
+coordinator = DependencyCoordinator(dashboard, container, dispatcher)
+await coordinator.wait_for_dependencies()   # 超时取 ServiceDependency.timeout_s
+```
+
+同步的 `start_all()` 保持原语义且不发布事件；需要控制面事件时使用 `astart_all()`。
+
 ### 完整可运行示例
 
 把以上五步串起来就是 `examples/local_echo_service/app.py`——一个自包含的 echo 服务，跑通了 Service → EventBus → InterceptorChain → Retry/CircuitBreaker/Timeout → 事件投递的完整链路：

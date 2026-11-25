@@ -11,7 +11,14 @@ from tinysoa.core.errors import (
     ValidationError,
 )
 from tinysoa.core.model import Service, ServiceDependency
-from tinysoa.runtime import Container, DependencyResolver, LifecycleManager
+from tinysoa.runtime import (
+    Container,
+    DependencyResolver,
+    InternalEvent,
+    InternalEventDispatcher,
+    InternalEventType,
+    LifecycleManager,
+)
 
 
 def _service(
@@ -209,3 +216,86 @@ def test_start_all_rejects_terminated_required_dependency() -> None:
     manager = LifecycleManager(container)
     with pytest.raises(DependencyError, match="RUNNING"):
         manager.start_all()
+
+
+async def test_async_lifecycle_publishes_ready_and_dependency_events() -> None:
+    container = _graph()
+    dispatcher = InternalEventDispatcher()
+    events: list[InternalEvent] = []
+
+    async def record(event: InternalEvent) -> None:
+        events.append(event)
+
+    dispatcher.subscribe(InternalEventType.SERVICE_READY, record)
+    dispatcher.subscribe(InternalEventType.DEPENDENCY_SATISFIED, record)
+    manager = LifecycleManager(container, internal_events=dispatcher)
+
+    await manager.astart_all()
+
+    ready = [
+        event.source_service_id
+        for event in events
+        if event.event_type is InternalEventType.SERVICE_READY
+    ]
+    satisfied = {
+        (event.source_service_id, event.related_service_id)
+        for event in events
+        if event.event_type is InternalEventType.DEPENDENCY_SATISFIED
+    }
+    assert ready == [0x1000, 0x2000, 0x3000, 0x4000]
+    assert (0x2000, 0x1000) in satisfied
+    assert (0x3000, 0x1000) in satisfied
+    assert (0x3000, 0x2000) in satisfied
+
+
+async def test_async_lifecycle_publishes_stopped_and_dependency_lost() -> None:
+    container = _graph()
+    dispatcher = InternalEventDispatcher()
+    events: list[InternalEvent] = []
+
+    async def record(event: InternalEvent) -> None:
+        events.append(event)
+
+    dispatcher.subscribe(InternalEventType.SERVICE_STOPPED, record)
+    dispatcher.subscribe(InternalEventType.DEPENDENCY_LOST, record)
+    manager = LifecycleManager(container, internal_events=dispatcher)
+    await manager.astart_all()
+    events.clear()
+
+    await manager.astop_all()
+
+    stopped = [
+        event.source_service_id
+        for event in events
+        if event.event_type is InternalEventType.SERVICE_STOPPED
+    ]
+    lost = {
+        (event.source_service_id, event.related_service_id)
+        for event in events
+        if event.event_type is InternalEventType.DEPENDENCY_LOST
+    }
+    assert stopped == [0x4000, 0x3000, 0x2000, 0x1000]
+    assert (0x2000, 0x1000) in lost
+    assert (0x3000, 0x1000) in lost
+    assert (0x3000, 0x2000) in lost
+
+
+def test_sync_lifecycle_does_not_publish_events() -> None:
+    container = _graph()
+    dispatcher = InternalEventDispatcher()
+    manager = LifecycleManager(container, internal_events=dispatcher)
+
+    manager.start_all()
+
+    assert dispatcher.history() == []
+
+
+async def test_async_lifecycle_works_without_dispatcher() -> None:
+    container = _graph()
+    manager = LifecycleManager(container)
+
+    await manager.astart_all()
+
+    assert all(
+        service.status.value == "running" for service in container.list_services()
+    )

@@ -16,6 +16,10 @@
   `LifecycleManager` 按依赖顺序启停。
 - **客户端代理落地（Phase 2）**：`ServiceProxy` 组合 `ServiceInvoker` +
   `InterceptorChain` + Retry/Timeout/CircuitBreaker，统一客户端调用语义。
+- **控制面事件落地**：强类型 `InternalEvent` / `InternalEventType` + 具体
+  `InternalEventDispatcher`（无 ABC、无序列化）+ `DependencyCoordinator`
+  快照/事件/超时等待；`LifecycleManager` 新增 `a*` 异步方法发布
+  READY / STOPPED / DEPENDENCY_* 事件。
 - **公共包门面修复**：`tinysoa.runtime` / `tinysoa.api` / `tinysoa.core` 可直接
   导入文档中的名字；`tinysoa.spi` / `tinysoa.obs` 改用惰性导出避免循环导入。
 
@@ -46,6 +50,16 @@
 **设计目标**: `@Service` 装饰器声明式 API。
 **当前实现**: `Container.add_service(Service(...))` 命令式 API。
 **决策**: 命令式 API 是正确的底层基础。`@Service` 作为其语法糖在 Phase 2 实现——装饰器内部完成 Service 构建 + Container 注册 + 生命周期方法生成。
+
+### ADR-005: 控制面事件用具体分发器，不引入第二个 EventBus ABC
+
+**设计目标**: `InternalEventBus` 作为框架内部事件总线。
+**当前实现**: `InternalEvent` / `InternalEventType` 强类型契约 + 具体
+`InternalEventDispatcher`；无 ABC、无 `start/stop`、无序列化、无多传输实现。
+**决策**: 内部事件只有“进程内”一种传输，没有第二个实现，ABC 只会复制业务
+`EventBus` 的问题。共享内存消除了传输抽象，但不消除发布/订阅的解耦需求。
+**影响**: 后续 SD / 健康检查 / 配置订阅方直接 `subscribe`；若未来真的需要跨进程
+控制面事件，再引入接口。
 
 ---
 
@@ -139,14 +153,15 @@
 | `CircuitBreaker` | ✅ | — | Phase 2: 与 InterceptorChain 集成 |
 | `LoadBalancer` | ❌ | — | Phase 2 |
 
-### 2.9 内部事件 (未实现)
+### 2.9 内部事件
 
 | 设计组件 | 实现状态 | 差距 | 收敛路径 |
 |---------|---------|------|---------|
-| `InternalEventBus` | ❌ (0%) | 完全缺失 | Phase 2: 作为 InMemoryEventBus 的子类 |
-| `InternalEvent` / 12 事件类型 | ❌ | 完全缺失 | Phase 2 |
-| `DependencyCoordinator` | ❌ | 完全缺失 | Phase 2 |
-| `HealthMonitor` | ❌ | 当前用 LifecycleManager.check_health() 替代 | Phase 2 |
+| `InternalEvent` / 12 事件类型 | ✅ 强类型、不可变契约 | 部分类型尚无发布者 | 后续按 SD / 健康 / 配置接入 |
+| `InternalEventDispatcher` | ✅ 具体进程内分发器：有序分发、异常隔离、有界历史；无 ABC / 无序列化 / 无 start-stop | — | 见 ADR-005 |
+| `InternalEventBus` ABC | — (不做) | 内部事件只有内存一种实现，ABC 无第二个实现 | 需要跨进程控制面时再引入接口 |
+| `DependencyCoordinator` | ✅ 订阅先行 + 本地快照 + `timeout_s` 超时 | 运行期掉线监控未实现 | Phase 3: 长驻 HealthMonitor |
+| `HealthMonitor` | ❌ | 当前用 LifecycleManager.check_health() 替代 | Phase 3 |
 
 ---
 
@@ -163,7 +178,7 @@ Phase 1 (v0.1 — 当前)
   ✅ ServiceRegistry/Invoker/Publisher/Subscriber ABC 定义
 
 Phase 2 (v0.2 — 收敛目标)
-  → InternalEventBus → 驱动生命周期、依赖、发现通知
+  ✅ InternalEventDispatcher → 驱动生命周期与依赖通知 (2026-11)
   → @Service 装饰器 → Container 的命令式封装
   ✅ ServiceProxy → 基于 ServiceInvoker + 拦截器 + 重试/超时/熔断 (2026-11)
   → SOME/IP SD 集成 → 分布式服务发现
@@ -202,5 +217,5 @@ Phase 4 (v1.0 — 生态)
 | [06-configuration](06-configuration.md) | 配置结构、版本管理、灰度部署、原子性边界 | ConfigLoader 实现基础加载；版本/灰度未实现 |
 | [07-monitoring-tracing](07-monitoring-tracing.md) | TraceContextHeader、SLO 拓扑分类、Prometheus 告警 | 进程内指标+追踪；分布式追踪缺失 |
 | [08-best-practices](08-best-practices.md) | 项目结构、开发流程、代码示例 | 示例 API (@Service/@rpc/Proxy) 为设计目标而非当前可用 |
-| [09-internal-event-model](09-internal-event-model.md) | InternalEventBus、12 事件类型、事件驱动模式 | 0% 实现 — Phase 2 最大优先级 |
+| [09-internal-event-model](09-internal-event-model.md) | InternalEventBus、12 事件类型、事件驱动模式 | 契约 + 具体分发器 + Lifecycle/Dependency 接入已实现；SD/健康/配置发布者未接入；不引入 ABC (ADR-005) |
 | [testing-framework](../TESTING.md) | 测试分层、pytest 配置、CI 形状 | 已移出 design/；131 tests 可运行 |

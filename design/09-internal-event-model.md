@@ -1,5 +1,10 @@
 # 内部事件模型设计
 
+> **实现状态 (2026-11-25)**: 采用强类型 `InternalEvent` / `InternalEventType` 契约 + 具体
+> `InternalEventDispatcher`（无 ABC、无序列化、无 start-stop）。生命周期事件与
+> `DependencyCoordinator` 已接入；SD / 健康检查 / 配置发布者待接入。设计决策见
+> `implementation-gap.md` 的 ADR-005。
+
 ## 1. 概述
 
 **内部事件** 是 tinySOA 框架内部的通信机制，用于：

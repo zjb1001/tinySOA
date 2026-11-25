@@ -32,7 +32,7 @@ PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.local_echo_service.
 ## 目录结构
 - `src/tinysoa/`：核心源码（core/runtime/api/spi/policies/eventbus/obs 等）
 - `tests/`：测试用例
-- `examples/`：9 个渐进案例，按 `local_*` / `tcp_*` / `someip_*` 命名（见 [examples/README.md](examples/README.md)）
+- `examples/`：10 个渐进案例，按 `local_*` / `tcp_*` / `someip_*` 命名（见 [examples/README.md](examples/README.md)）
 - `third_party/`：第三方依赖（以 git submodule 形式引入）
   - `third_party/pysomeip/`：[pysomeip](https://github.com/afflux/pysomeip)，SOME/IP 协议栈（提供 `someip` 包），供 `src/tinysoa/eventbus/someip.py` 使用
 

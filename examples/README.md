@@ -44,6 +44,7 @@ make -C examples smoke-all
 | `local_interceptor_auth` | LOCAL | 单进程 | `local_interceptor_auth.app` | 拦截器排序 / Auth 短路 / 异常传播 |
 | `local_vehicle_platform` | LOCAL | 单进程 | `local_vehicle_platform.app` | Container 依赖/生命周期/健康检查 |
 | `local_pubsub_topologies` | LOCAL | 单进程 | `local_pubsub_topologies.app` | 1 pub→1 sub / 1 pub→N subs / N pubs→1 sub |
+| `local_dependency_events` | LOCAL | 单进程 | `local_dependency_events.app` | 依赖排序 + 控制面事件 + 远程依赖等待 |
 | `tcp_pubsub_one_pub_many_subs` | BROKER | 1 pub + N sub | `tcp_pubsub_one_pub_many_subs.{server,publisher,subscriber}` | 1 pub → N subs：TCP 中心 broker 扇出 |
 | `someip_pubsub_one_pub_one_sub` | PEER | 1 pub + 1 sub | `someip_pubsub_one_pub_one_sub.{publisher,subscriber}` | 1 pub → 1 sub：最小 `SomeIPService` 事件链路 |
 | `someip_pubsub_one_pub_many_subs` | PEER | 1 pub + N sub | `someip_pubsub_one_pub_many_subs.{publisher,subscriber}` | 1 pub → N subs：同一服务多订阅者 |
@@ -83,6 +84,8 @@ make -C examples interceptors
 make -C examples vdp
 make -C examples topologies
 make -C examples topologies SCENARIO=1vn SUBSCRIBERS=5
+make -C examples dependency-events
+make -C examples smoke-dependency-events
 
 # TCP broker
 make -C examples tmux-pubsub-one-pub-many-subs

@@ -34,6 +34,7 @@ LOCAL_ECHO := $(SELF_DIR)local_echo_service/
 LOCAL_INTERCEPTORS := $(SELF_DIR)local_interceptor_auth/
 LOCAL_VDP := $(SELF_DIR)local_vehicle_platform/
 LOCAL_TOPOLOGIES := $(SELF_DIR)local_pubsub_topologies/
+LOCAL_DEP_EVENTS := $(SELF_DIR)local_dependency_events/
 TCP_ONE_PUB_MANY_SUBS := $(SELF_DIR)tcp_pubsub_one_pub_many_subs/
 SOMEIP_ONE_PUB_ONE_SUB := $(SELF_DIR)someip_pubsub_one_pub_one_sub/
 SOMEIP_ONE_PUB_MANY_SUBS := $(SELF_DIR)someip_pubsub_one_pub_many_subs/
@@ -52,6 +53,7 @@ help: ## 显示帮助
 	@echo "  make interceptors               拦截器 + Auth"
 	@echo "  make vdp                        车辆数据平台"
 	@echo "  make topologies                 1 pub→1 sub / 1 pub→N subs / N pubs→1 sub"
+	@echo "  make dependency-events          依赖排序 + 控制面事件 + 远程依赖等待"
 	@echo ""
 	@echo "=== TCP broker（BROKER 拓扑） ==="
 	@echo "  make tmux-pubsub-one-pub-many-subs                tmux：1 pub → N subs"
@@ -82,7 +84,8 @@ help: ## 显示帮助
 # =========================================================================
 # 本地单进程
 # =========================================================================
-.PHONY: echo interceptors vdp topologies smoke-vdp tmux-vdp
+.PHONY: echo interceptors vdp topologies dependency-events \
+        smoke-vdp smoke-dependency-events tmux-vdp tmux-dependency-events
 echo: ## 本地 echo 服务
 	@cd $(REPO_ROOT) && PYTHONPATH=$(PYTHONPATH) \
 	  $(PYTHON) -m examples.local_echo_service.app
@@ -99,11 +102,20 @@ vdp: ## 车辆数据平台
 topologies: ## 1v1 / 1vN / Nv1 本地拓扑矩阵
 	@$(MAKE) -C $(LOCAL_TOPOLOGIES) run
 
+dependency-events: ## 依赖排序 + 控制面事件 + 远程依赖等待
+	@$(MAKE) -C $(LOCAL_DEP_EVENTS) run
+
 smoke-vdp: ## 车辆数据平台冒烟
 	@$(MAKE) -C $(LOCAL_VDP) smoke
 
+smoke-dependency-events: ## 依赖事件案例冒烟
+	@$(MAKE) -C $(LOCAL_DEP_EVENTS) smoke
+
 tmux-vdp: ## tmux 可视化车辆数据平台
 	@$(MAKE) -C $(LOCAL_VDP) tmux
+
+tmux-dependency-events: ## tmux 可视化依赖事件案例
+	@$(MAKE) -C $(LOCAL_DEP_EVENTS) tmux
 
 # =========================================================================
 # SOME/IP RPC
@@ -191,7 +203,7 @@ status-all: ## 查看全部示例组状态
 	@echo "=== someip_pubsub_one_pub_many_subs ==="; $(MAKE) --no-print-directory -C $(SOMEIP_ONE_PUB_MANY_SUBS) status
 	@echo "=== someip_pubsub_many_pubs_one_sub ==="; $(MAKE) --no-print-directory -C $(SOMEIP_MANY_PUBS_ONE_SUB) status
 
-smoke-all: echo interceptors topologies smoke-pubsub-one-pub-many-subs smoke-someip-one-pub-one-sub smoke-someip-one-pub-many-subs smoke-someip-many-pubs-one-sub smoke-vdp smoke-calc ## 顺序跑稳定冒烟组
+smoke-all: echo interceptors topologies smoke-pubsub-one-pub-many-subs smoke-someip-one-pub-one-sub smoke-someip-one-pub-many-subs smoke-someip-many-pubs-one-sub smoke-vdp smoke-dependency-events smoke-calc ## 顺序跑稳定冒烟组
 	@echo ">> 所有冒烟测试完成"
 
 clean-all: stop-all ## 停止全部进程并清理产物
@@ -199,6 +211,7 @@ clean-all: stop-all ## 停止全部进程并清理产物
 	@$(MAKE) -C $(LOCAL_INTERCEPTORS) clean 2>/dev/null || true
 	@$(MAKE) -C $(LOCAL_VDP) clean 2>/dev/null || true
 	@$(MAKE) -C $(LOCAL_TOPOLOGIES) clean 2>/dev/null || true
+	@$(MAKE) -C $(LOCAL_DEP_EVENTS) clean 2>/dev/null || true
 	@$(MAKE) -C $(TCP_ONE_PUB_MANY_SUBS) clean 2>/dev/null || true
 	@$(MAKE) -C $(SOMEIP_ONE_PUB_ONE_SUB) clean 2>/dev/null || true
 	@$(MAKE) -C $(SOMEIP_ONE_PUB_MANY_SUBS) clean 2>/dev/null || true

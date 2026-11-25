@@ -15,7 +15,7 @@ tests/
 ├── conftest.py                     # shared fixtures
 ├── unit/         (21 modules)      # fast, no network, always-run gate
 ├── integration/  (5 files)         # multi-component, may use loopback
-├── examples/     (7 files)         # example verification (import/wiring)
+├── examples/     (8 files)         # example verification (import/wiring)
 └── system/       (12 ST dirs)      # standalone scripts, SKIP-guarded
 ```
 
@@ -33,7 +33,7 @@ tests/
 | `config/` | unit | test_config_merge, test_config_system |
 | `eventbus/` (InMemory+TCP) | integration | test_event_bus |
 | `eventbus/` (SomeIP) | integration | test_someip_bus, test_service_discovery_proto |
-| examples | examples | test_example_local_echo_service, _local_interceptor_auth, _local_pubsub_topologies, _tcp_one_pub_many_subs, _someip_one_pub_one_sub_config, _someip_one_pub_many_subs_config, _someip_many_pubs_one_sub |
+| examples | examples | test_example_local_echo_service, _local_interceptor_auth, _local_pubsub_topologies, _local_dependency_events, _tcp_one_pub_many_subs, _someip_one_pub_one_sub_config, _someip_one_pub_many_subs_config, _someip_many_pubs_one_sub |
 | system | system/ST-* | standalone scripts (not pytest) |
 
 **Resolved tech debt**:

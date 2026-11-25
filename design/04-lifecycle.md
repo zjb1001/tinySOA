@@ -1,5 +1,8 @@
 # 服务生命周期管理设计
 
+> 生命周期事件属于控制面：数据面/控制面的边界、事实/命令的语义、事件词汇的能力边界
+> 见 [10-control-plane-governance.md](10-control-plane-governance.md)。
+
 ## 1. 状态机
 
 ### 1.1 基础状态机 (Phase 1)

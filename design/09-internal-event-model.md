@@ -4,6 +4,9 @@
 > `InternalEventDispatcher`（无 ABC、无序列化、无 start-stop）。生命周期事件与
 > `DependencyCoordinator` 已接入；SD / 健康检查 / 配置发布者待接入。设计决策见
 > `implementation-gap.md` 的 ADR-005。
+>
+> 框架治理边界（数据面 vs 控制面、事实 vs 命令、事件词汇即能力边界）见
+> [10-control-plane-governance.md](10-control-plane-governance.md)。
 
 ## 1. 概述
 

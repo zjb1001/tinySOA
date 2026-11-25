@@ -6,6 +6,16 @@
 SOME/IP SD 的 `INSTANCE_DISCOVERED` 事件变为可用，`DependencyCoordinator`
 在两类来源都满足后才允许 `DashboardService` 启动。
 
+## 这个案例在治理模型中的位置
+
+- **业务数据面**：服务之间的业务事件走 `EventBus`（本案例不涉及）。
+- **治理控制面**：`LifecycleManager` 发布状态事实，`InternalEventDispatcher` 分发，
+  `DependencyCoordinator` 订阅并做出决策。
+- 这个案例展示的是框架作为“服务状态所有者”的一面：`DashboardService` 能否启动，
+  不由代码调用顺序决定，而由“必需依赖事实是否满足”决定。
+
+治理模型背景见 [design/10-control-plane-governance.md](../../design/10-control-plane-governance.md)。
+
 ## 服务
 
 | 服务 | ID | 依赖 |

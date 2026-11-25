@@ -20,6 +20,9 @@
   `InternalEventDispatcher`（无 ABC、无序列化）+ `DependencyCoordinator`
   快照/事件/超时等待；`LifecycleManager` 新增 `a*` 异步方法发布
   READY / STOPPED / DEPENDENCY_* 事件。
+- **治理模型文档化**：新增
+  [10-control-plane-governance.md](10-control-plane-governance.md)，明确
+  数据面/控制面、事实/命令、事件词汇即能力边界（见 ADR-006）。
 - **公共包门面修复**：`tinysoa.runtime` / `tinysoa.api` / `tinysoa.core` 可直接
   导入文档中的名字；`tinysoa.spi` / `tinysoa.obs` 改用惰性导出避免循环导入。
 
@@ -60,6 +63,17 @@
 `EventBus` 的问题。共享内存消除了传输抽象，但不消除发布/订阅的解耦需求。
 **影响**: 后续 SD / 健康检查 / 配置订阅方直接 `subscribe`；若未来真的需要跨进程
 控制面事件，再引入接口。
+
+### ADR-006: 控制面事件契约是框架的治理 API
+
+**背景**: 生命周期、依赖、发现、健康、配置、审计等治理需求需要一个统一的状态通知面。
+**决策**: 明确区分数据面 `EventBus` 与控制面 `InternalEventDispatcher`；
+`InternalEventType` 是框架对治理能力的声明，只承载状态事实，不承载业务 payload；
+分发器是具体机制，不引入 ABC（ADR-005）。
+**理由**: 共享内存消除了传输抽象，但不消除知识边界；治理要求发布者不知道订阅者、
+订阅者不知道发布者。没有控制面契约，框架只是通信库；有了它，框架才拥有服务状态。
+**影响**: 新治理能力通过订阅接入；事件枚举扩展需设计评审；SD / 健康 / 配置发布者
+逐步接入。
 
 ---
 
@@ -218,4 +232,5 @@ Phase 4 (v1.0 — 生态)
 | [07-monitoring-tracing](07-monitoring-tracing.md) | TraceContextHeader、SLO 拓扑分类、Prometheus 告警 | 进程内指标+追踪；分布式追踪缺失 |
 | [08-best-practices](08-best-practices.md) | 项目结构、开发流程、代码示例 | 示例 API (@Service/@rpc/Proxy) 为设计目标而非当前可用 |
 | [09-internal-event-model](09-internal-event-model.md) | InternalEventBus、12 事件类型、事件驱动模式 | 契约 + 具体分发器 + Lifecycle/Dependency 接入已实现；SD/健康/配置发布者未接入；不引入 ABC (ADR-005) |
+| [10-control-plane-governance](10-control-plane-governance.md) | 数据面/控制面、事实/命令、治理边界 | 已文档化；SD/健康/配置发布者待接入 |
 | [testing-framework](../TESTING.md) | 测试分层、pytest 配置、CI 形状 | 已移出 design/；131 tests 可运行 |

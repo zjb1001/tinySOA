@@ -3,7 +3,7 @@
 ## 1. 项目概述
 
 ### 1.1 项目背景
-tinySOA 是一个基于 SOME/IP 协议的轻量级面向服务架构（SOA）框架，旨在简化分布式服务的开发和部署。框架构建在现有的 pysomeip 协议实现之上，提供更高层次的抽象和易用的 API。
+tinySOA 是一个协议无关的轻量级面向服务架构（SOA）框架：以 Service 模型和运行时治理为中心，通过可插拔 EventBus 接入 InMemory / TCP / SOME/IP 等传输。SOME/IP（pysomeip）是当前首个车载协议栈实现，但不是框架的唯一协议。框架的目标是简化分布式服务的开发和部署，并在服务生命周期、依赖、发现、健康等治理维度提供统一抽象。
 
 ### 1.2 设计目标
 - **简单易用**: 提供直观的 API，降低 SOA 开发门槛
@@ -18,6 +18,7 @@ tinySOA 是一个基于 SOME/IP 协议的轻量级面向服务架构（SOA）框
 - 简化的 RPC 调用接口
 - 事件驱动的发布/订阅模式
 - 服务生命周期管理
+- 控制面事件与运行期依赖协调
 - 配置管理与热更新
 - 服务监控与追踪
 - 插件化架构
@@ -58,6 +59,9 @@ tinySOA 是一个基于 SOME/IP 协议的轻量级面向服务架构（SOA）框
 └─────────────────────────────────────────────────┘
 ```
 
+> 图中 SOME/IP 是当前首个协议栈实现；EventBus ABC 同时支持 InMemory / TCP，
+> 协议无关性是 ADR-003 的一级约束。控制面治理不在该数据面栈内，见 2.3。
+
 ### 2.2 核心模块
 
 #### 2.2.1 Service Registry (服务注册中心)
@@ -78,11 +82,15 @@ tinySOA 是一个基于 SOME/IP 协议的轻量级面向服务架构（SOA）框
 - 负载均衡
 - 故障转移
 
-#### 2.2.4 Event Bus (事件总线)
+#### 2.2.4 Event Bus (数据面事件总线)
 - 发布/订阅模式
 - 事件路由
 - 事件过滤
-- 事件持久化
+- 事件持久化（按部署方式可选）
+
+> 这是**业务数据面**：topic / payload 属于应用。运行时治理状态不走这里，
+> 见 2.2.9 控制面治理与
+> [控制面与框架治理模型](10-control-plane-governance.md)。
 
 #### 2.2.5 Lifecycle Manager (生命周期管理器)
 - 服务启动/停止
@@ -108,6 +116,39 @@ tinySOA 是一个基于 SOME/IP 协议的轻量级面向服务架构（SOA）框
 - 健康检查
 - 告警机制
 
+#### 2.2.9 Control Plane (控制面治理)
+- 强类型内部事件契约（生命周期 / 依赖 / 发现 / 健康 / 配置）
+- 服务状态事实的进程内发布与订阅
+- 依赖协调策略（必需/可选、快照 + 事件、超时）
+- 与数据面 EventBus 的所有权隔离
+
+详见 [控制面与框架治理模型](10-control-plane-governance.md)。
+
+### 2.3 数据面与控制面
+
+tinySOA 的框架定义不是“消息通道提供者”，而是“服务状态的所有者”：
+
+```text
+业务数据面：
+  Service A ──EventBus(topic, payload)──> Service B
+
+治理控制面：
+  LifecycleManager ──SERVICE_READY──┐
+  SD Adapter ───────INSTANCE_*──────┼──> InternalEventDispatcher
+  HealthChecker ────SERVICE_*───────┘          │
+                                              ├──> DependencyCoordinator
+                                              ├──> Audit / Metrics
+                                              └──> HealthMonitor
+```
+
+- **数据面**：应用定义 topic 和 payload，可跨进程，需要序列化。
+- **控制面**：框架定义事件词汇，仅进程内，不序列化，at-most-once。
+- **治理 = 事实 + 决策 + 机制**：事件是事实，Coordinator/Monitor 是决策，
+  Dispatcher 是机制。
+
+`InternalEventType` 的取值就是框架对“哪些治理状态负责”的能力声明。
+因此事件契约是架构，分发器只是实现。
+
 ## 3. 关键设计决策
 
 ### 3.1 编程模型
@@ -131,6 +172,13 @@ tinySOA 是一个基于 SOME/IP 协议的轻量级面向服务架构（SOA）框
 - 超时控制
 - 熔断器模式
 - 降级策略
+
+### 3.5 数据面与控制面分离
+- 业务事件走 `EventBus`（应用定义 topic / payload）
+- 治理状态走 `InternalEventDispatcher`（框架定义事件词汇）
+- 事件契约是框架的治理 API；分发器是具体实现，不引入第二个 ABC
+- 发布者不知道订阅者；新增治理能力通过订阅接入
+- 详见 [10-control-plane-governance.md](10-control-plane-governance.md)
 
 ## 4. 技术栈
 
@@ -171,7 +219,7 @@ tinySOA 是一个基于 SOME/IP 协议的轻量级面向服务架构（SOA）框
 - [ ] 多实例支持与负载均衡 (RoundRobin/Random/LatencyWeighted)
 - [ ] 实例健康度评分与自适应选择
 - [ ] 故障转移与自动重试
-- [ ] 内部事件体系 (ServiceDiscovered/ServiceLost/HealthChanged)
+- [ ] 内部事件体系与治理契约 (ServiceDiscovered/ServiceLost/HealthChanged) — 见 [10-control-plane-governance.md](10-control-plane-governance.md)
 - [ ] 配置版本控制与原子化更新
 
 **交付标准**: 3个不同进程的服务互相调用成功，支持实例上下线
@@ -269,14 +317,6 @@ tinySOA 是一个基于 SOME/IP 协议的轻量级面向服务架构（SOA）框
 - [监控与追踪](07-monitoring-tracing.md)
 - [最佳实践](08-best-practices.md)
 - [内部事件模型](09-internal-event-model.md)
+- [控制面与框架治理模型](10-control-plane-governance.md)
 
 > 实现状态与设计-代码差距分析见 **[implementation-gap.md](implementation-gap.md)**。
-
-参考以下详细设计文档：
-- [核心组件设计](02-core-components.md)
-- [API 设计](03-api-design.md)
-- [生命周期管理](04-lifecycle.md)
-- [拦截器与插件](05-interceptors-plugins.md)
-- [配置管理](06-configuration.md)
-- [监控与追踪](07-monitoring-tracing.md)
-- [最佳实践](08-best-practices.md)

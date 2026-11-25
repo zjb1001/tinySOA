@@ -10,6 +10,7 @@ from .lifecycle import (
     LifecycleHook,
     LifecycleManager,
 )
+from .proxy import ServiceProxy, ServiceProxyConfig
 
 __all__ = [
     "Container",
@@ -20,4 +21,6 @@ __all__ = [
     "HealthStatus",
     "LifecycleHook",
     "LifecycleManager",
+    "ServiceProxy",
+    "ServiceProxyConfig",
 ]

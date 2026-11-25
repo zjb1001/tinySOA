@@ -14,6 +14,8 @@
 - **依赖管理落地（Phase 2）**：`Service.dependencies` + `DependencyResolver`
   （拓扑排序 / 分层 / 环检测 / strict 缺失依赖校验）+
   `LifecycleManager` 按依赖顺序启停。
+- **客户端代理落地（Phase 2）**：`ServiceProxy` 组合 `ServiceInvoker` +
+  `InterceptorChain` + Retry/Timeout/CircuitBreaker，统一客户端调用语义。
 - **公共包门面修复**：`tinysoa.runtime` / `tinysoa.api` / `tinysoa.core` 可直接
   导入文档中的名字；`tinysoa.spi` / `tinysoa.obs` 改用惰性导出避免循环导入。
 
@@ -103,10 +105,10 @@
 | 设计组件 | 实现状态 | 差距 | 收敛路径 |
 |---------|---------|------|---------|
 | `ServiceRegistry` ABC | ✅ ABC 已定义 | 无网络实现 | Phase 2: SomeIPRegistry / TcpRegistry |
-| `ServiceInvoker` ABC | ✅ ABC 已定义 | 无具体实现 | Phase 2: 基于 EventBus 实现 |
+| `ServiceInvoker` ABC | ✅ ABC + `SomeIPMethodInvoker` | 仅 SOME/IP 实现 | Phase 2: 本地/EventBus 实现 |
 | `EventPublisher` / `EventSubscriber` ABC | ✅ ABC 已定义 | 无网络实现 | Phase 2 |
 | `@Service` / `@rpc` 装饰器 | ❌ | — | Phase 2 |
-| `ServiceProxy` | ❌ | — | Phase 2 (基于 EventBus + InterceptorChain) |
+| `ServiceProxy` | ✅ 组合 `ServiceInvoker` + `InterceptorChain` + Retry/Timeout/CircuitBreaker | 无负载均衡/多实例故障转移 | Phase 3 |
 | `CallContext` / `ContextManager` | ❌ | — | Phase 2 |
 
 ### 2.6 配置 (config/)
@@ -163,7 +165,7 @@ Phase 1 (v0.1 — 当前)
 Phase 2 (v0.2 — 收敛目标)
   → InternalEventBus → 驱动生命周期、依赖、发现通知
   → @Service 装饰器 → Container 的命令式封装
-  → ServiceProxy → EventBus 上的 RPC 层 (含 LB/重试)
+  ✅ ServiceProxy → 基于 ServiceInvoker + 拦截器 + 重试/超时/熔断 (2026-11)
   → SOME/IP SD 集成 → 分布式服务发现
   → Config schema 扩展 → 匹配设计 YAML 结构
   ✅ DependencyResolver → 拓扑排序 + 分层 + 环检测 (2026-11)
@@ -194,7 +196,7 @@ Phase 4 (v1.0 — 生态)
 |---------|---------|---------|
 | [01-overview](01-overview.md) | 架构四层图、Phase 路线图、成功标准 | 架构图以 ServiceProxy 为中心；实际以 EventBus 为中心 (见 ADR-001) |
 | [02-core-components](02-core-components.md) | ServiceRegistry、ConnectionManager、SD、ServiceProxy、LoadBalancer 设计 | 仅 EventBus 完全实现；ServiceProxy/LB/SD 为 Phase 2 |
-| [03-api-design](03-api-design.md) | @Service 声明式 API、ServiceProxy 接口 | 当前为命令式 Container API (见 ADR-004) |
+| [03-api-design](03-api-design.md) | @Service 声明式 API、ServiceProxy 接口 | ServiceProxy 已实现；@Service 声明式 API 未实现，当前为命令式 Container API (见 ADR-004) |
 | [04-lifecycle](04-lifecycle.md) | FSM (含 DEGRADED)、InternalEventBus 驱动、DependencyResolver | 基础 FSM + DependencyResolver 已实现；InternalEventBus 缺失 |
 | [05-interceptors-plugins](05-interceptors-plugins.md) | 三方法接口、8 个内置拦截器、执行流程图 | 中间件接口先行 (见 ADR-002); 3/8 拦截器实现 |
 | [06-configuration](06-configuration.md) | 配置结构、版本管理、灰度部署、原子性边界 | ConfigLoader 实现基础加载；版本/灰度未实现 |

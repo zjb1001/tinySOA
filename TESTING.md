@@ -13,7 +13,7 @@ layer structure, not a fixed test count.
 ```
 tests/
 ├── conftest.py                     # shared fixtures
-├── unit/         (18 modules)      # fast, no network, always-run gate
+├── unit/         (19 modules)      # fast, no network, always-run gate
 ├── integration/  (5 files)         # multi-component, may use loopback
 ├── examples/     (7 files)         # example verification (import/wiring)
 └── system/       (12 ST dirs)      # standalone scripts, SKIP-guarded
@@ -24,7 +24,7 @@ tests/
 | Subpackage | Layer | Files |
 |---|---|---|
 | `core/` | unit | test_core_model, test_runtime_lifecycle |
-| `runtime/` | unit | test_runtime_lifecycle, test_dependency_resolver |
+| `runtime/` | unit | test_runtime_lifecycle, test_dependency_resolver, test_service_proxy |
 | package facades | unit | test_package_exports |
 | `api/` | unit | test_api_contracts |
 | `policies/` | unit | test_policies |

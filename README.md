@@ -169,6 +169,29 @@ async def resilient_invoke(ctx):
 - **TimeoutPolicy**：超时自动取消
 - **CircuitBreaker**：连续失败 N 次后熔断（OPEN），等待恢复窗口后半开试探（HALF_OPEN），成功则恢复（CLOSED）
 
+#### 用 ServiceProxy 组合调用
+
+不想手工拼装时，`ServiceProxy` 把 invoker、拦截器链和三种策略收拢为一个入口：
+
+```python
+from tinysoa.runtime import ServiceProxy, ServiceProxyConfig
+
+proxy = ServiceProxy(
+    service,          # 含 methods 元数据的 Service
+    invoker,          # 任意 ServiceInvoker，例如 SomeIPMethodInvoker
+    ServiceProxyConfig(
+        timeout=1.0,      # 单次尝试超时
+        max_attempts=3,   # 含首次调用
+        interceptors=(TracingInterceptor(), MetricsInterceptor()),
+    ),
+)
+
+response = await proxy.call("say_hello", {"name": "Ada"})
+print(response.payload)
+```
+
+`call()` 返回 `Message`；熔断器在同一个 proxy 实例内跨调用共享状态。
+
 ### 第五步：生命周期管理
 
 用 `Container` 注册服务，用 `LifecycleManager` 管理启停。服务可通过

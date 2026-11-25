@@ -14,6 +14,8 @@ def test_runtime_facade_exports() -> None:
     assert runtime.DependencyResolver is not None
     assert runtime.LifecycleManager is not None
     assert runtime.HealthStatus is not None
+    assert runtime.ServiceProxy is not None
+    assert runtime.ServiceProxyConfig is not None
 
 
 def test_core_facade_exports() -> None:

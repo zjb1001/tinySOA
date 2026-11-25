@@ -16,3 +16,7 @@ class NotFoundError(TinySOAError):
 
 class DuplicateError(TinySOAError):
     """Raised when duplicate identifiers are detected."""
+
+
+class DependencyError(TinySOAError):
+    """Raised when service dependencies are invalid or unsatisfied."""

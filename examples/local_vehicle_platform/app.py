@@ -33,10 +33,18 @@ import sys
 import textwrap
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Sequence, Set
+from typing import Dict, List, Optional, Sequence
 
 from tinysoa.core.errors import StateError
-from tinysoa.core.model import Endpoint, Event, Method, Protocol, Service, ServiceStatus
+from tinysoa.core.model import (
+    Endpoint,
+    Event,
+    Method,
+    Protocol,
+    Service,
+    ServiceDependency,
+    ServiceStatus,
+)
 from tinysoa.eventbus import EventMessage, InMemoryEventBus, Subscription
 from tinysoa.runtime.container import Container
 from tinysoa.runtime.lifecycle import (
@@ -55,22 +63,6 @@ SVC_ENGINE_ID = 0x1000
 SVC_TRANSMISSION_ID = 0x2000
 SVC_DASHBOARD_ID = 0x3000
 SVC_DIAGNOSTICS_ID = 0x4000
-
-# 依赖声明：key 依赖 values 全部 RUNNING 后才能启动
-DEPENDENCY_GRAPH: Dict[int, List[int]] = {
-    SVC_ENGINE_ID: [],  # 无依赖，最先启动
-    SVC_TRANSMISSION_ID: [SVC_ENGINE_ID],  # 需要发动机 RPM
-    SVC_DASHBOARD_ID: [SVC_ENGINE_ID, SVC_TRANSMISSION_ID],  # 聚合两者
-    SVC_DIAGNOSTICS_ID: [],  # 独立运行
-}
-
-# 反向依赖 (用于 shutdown ordering)
-REVERSE_DEPENDENCIES: Dict[int, List[int]] = {
-    SVC_ENGINE_ID: [SVC_TRANSMISSION_ID, SVC_DASHBOARD_ID],
-    SVC_TRANSMISSION_ID: [SVC_DASHBOARD_ID],
-    SVC_DASHBOARD_ID: [],
-    SVC_DIAGNOSTICS_ID: [],
-}
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -152,6 +144,7 @@ class VehicleDataPlatform:
             methods=[Method("get_rpm", 1), Method("get_temperature", 2)],
             events=[Event("rpm_changed", 1), Event("temperature_changed", 2)],
             endpoints=[Endpoint("127.0.0.1", 30100, Protocol.UDP)],
+            dependencies=[],
         )
 
         transmission = Service(
@@ -161,6 +154,7 @@ class VehicleDataPlatform:
             methods=[Method("get_gear", 1)],
             events=[Event("gear_changed", 1)],
             endpoints=[Endpoint("127.0.0.1", 30101, Protocol.UDP)],
+            dependencies=[ServiceDependency(SVC_ENGINE_ID)],
         )
 
         dashboard = Service(
@@ -170,6 +164,10 @@ class VehicleDataPlatform:
             methods=[Method("get_display", 1)],
             events=[Event("display_updated", 1)],
             endpoints=[Endpoint("127.0.0.1", 30102, Protocol.TCP)],
+            dependencies=[
+                ServiceDependency(SVC_ENGINE_ID),
+                ServiceDependency(SVC_TRANSMISSION_ID),
+            ],
         )
 
         diagnostics = Service(
@@ -179,6 +177,7 @@ class VehicleDataPlatform:
             methods=[Method("run_diagnostics", 1), Method("get_report", 2)],
             events=[],
             endpoints=[Endpoint("127.0.0.1", 30103, Protocol.TCP)],
+            dependencies=[],
         )
 
         for svc in (engine, transmission, dashboard, diagnostics):
@@ -225,21 +224,8 @@ class VehicleDataPlatform:
     # 依赖感知的启动 / 停止
     # ──────────────────────────────────────────────────────────────
     def _topological_order(self) -> List[int]:
-        """返回依赖拓扑顺序 (启动顺序)。无依赖的在前。"""
-        visited: Set[int] = set()
-        order: List[int] = []
-
-        def visit(svc_id: int) -> None:
-            if svc_id in visited:
-                return
-            visited.add(svc_id)
-            for dep_id in DEPENDENCY_GRAPH.get(svc_id, []):
-                visit(dep_id)
-            order.append(svc_id)
-
-        for sid in self.services:
-            visit(sid)
-        return order
+        """返回依赖拓扑顺序 (启动顺序)，由框架 DependencyResolver 计算。"""
+        return self.lifecycle.dependency_resolver.startup_order()
 
     def startup_ordered(self) -> None:
         """按依赖顺序启动所有服务。"""
@@ -257,7 +243,7 @@ class VehicleDataPlatform:
 
     def shutdown_ordered(self) -> None:
         """按依赖反序停止所有服务。"""
-        order = list(reversed(self._topological_order()))
+        order = self.lifecycle.dependency_resolver.shutdown_order()
         logger.info(
             "Shutdown order: %s",
             " → ".join(self.services[sid].name for sid in order),
@@ -560,7 +546,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         svcs = platform.container.list_services()
         logger.info("Registered %d services:", len(svcs))
         for svc in svcs:
-            deps = DEPENDENCY_GRAPH.get(svc.id, [])
+            deps = [dependency.service_id for dependency in svc.dependencies]
             dep_names = [platform.services[d].name for d in deps] if deps else ["none"]
             logger.info(
                 "  %s (0x%x) depends on: %s", svc.name, svc.id, ", ".join(dep_names)

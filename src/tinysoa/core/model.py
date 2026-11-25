@@ -74,6 +74,29 @@ class Event:
 
 
 @dataclass(frozen=True)
+class ServiceDependency:
+    """Declared dependency on another service.
+
+    ``required`` dependencies must be available before the service starts;
+    optional dependencies may be absent, in which case the service can still
+    start in a degraded mode.  ``timeout_s`` bounds how long startup waits for
+    a remote dependency to become available.
+    """
+
+    service_id: int
+    required: bool = True
+    timeout_s: float = 10.0
+
+    def __post_init__(self) -> None:
+        if self.service_id < 0:
+            raise ValidationError("ServiceDependency.service_id must be >= 0")
+        if not isinstance(self.required, bool):
+            raise ValidationError("ServiceDependency.required must be a boolean")
+        if self.timeout_s <= 0:
+            raise ValidationError("ServiceDependency.timeout_s must be positive")
+
+
+@dataclass(frozen=True)
 class Message:
     payload: Any
     content_type: str = "application/json"
@@ -91,6 +114,7 @@ class Service:
     events: List[Event] = field(default_factory=list)
     endpoints: List[Endpoint] = field(default_factory=list)
     status: ServiceStatus = ServiceStatus.INIT
+    dependencies: List[ServiceDependency] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.name:
@@ -98,6 +122,7 @@ class Service:
         if self.id < 0:
             raise ValidationError("Service.id must be >= 0")
         self._validate_uniqueness()
+        self._validate_dependencies()
 
     def _validate_uniqueness(self) -> None:
         names = [m.name for m in self.methods]
@@ -113,6 +138,13 @@ class Service:
         eids = [e.id for e in self.events]
         if len(eids) != len(set(eids)):
             raise DuplicateError("Event ids must be unique within a service")
+
+    def _validate_dependencies(self) -> None:
+        ids = [dependency.service_id for dependency in self.dependencies]
+        if len(ids) != len(set(ids)):
+            raise DuplicateError("Dependency ids must be unique within a service")
+        if self.id in ids:
+            raise ValidationError("Service cannot depend on itself")
 
     def can_transition(self, to: ServiceStatus) -> bool:
         return to in _ALLOWED_TRANSITIONS[self.status]
@@ -171,6 +203,10 @@ class Service:
         ]
         methods = [Method(**m) for m in data.get("methods", [])]
         events = [Event(**e) for e in data.get("events", [])]
+        dependencies = [
+            ServiceDependency(**dependency)
+            for dependency in data.get("dependencies", [])
+        ]
         status = ServiceStatus(data.get("status", ServiceStatus.INIT.value))
         return cls(
             name=data["name"],
@@ -179,5 +215,6 @@ class Service:
             methods=methods,
             events=events,
             endpoints=endpoints,
+            dependencies=dependencies,
             status=status,
         )

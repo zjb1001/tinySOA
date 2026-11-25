@@ -12,7 +12,9 @@
 | DashboardService | `0x3000` | EngineService, TransmissionService |
 | DiagnosticsService | `0x4000` | — |
 
+依赖通过 `Service.dependencies` 声明，启动顺序由框架 `DependencyResolver` 计算；
 `Container` 按拓扑序启动、按反序关闭，并执行 `on_start/on_stop/on_terminate` 钩子。
+示例自身不再维护独立的依赖图。
 
 ## 目录
 

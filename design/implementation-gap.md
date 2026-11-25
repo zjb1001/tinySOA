@@ -2,7 +2,20 @@
 
 > 设计→实现映射的唯一信息源。设计文档本身保持独立，仅描述目标架构（What & Why）。本文档描述当前代码实现了什么、如何逐步收敛到设计目标、以及架构决策记录。
 
-**最后更新**: 2026-06-20
+**最后更新**: 2026-11-25
+
+## 0. 近期进展 (2026-11)
+
+- **总线拥有注册生命周期**：`bus.register/unregister` 成为唯一控制面动作，
+  `TopicPublisher` / `TopicSubscriber` 退化为携带 topic/handler 的句柄
+  （未注册调用 `publish()` 抛 `StateError`）。
+- **SOME/IP 应用门面**：`SomeIPService` 让 event / method 共享同一个
+  `SomeIPEndpoint` 与服务实例（Phase 3.5）。
+- **依赖管理落地（Phase 2）**：`Service.dependencies` + `DependencyResolver`
+  （拓扑排序 / 分层 / 环检测 / strict 缺失依赖校验）+
+  `LifecycleManager` 按依赖顺序启停。
+- **公共包门面修复**：`tinysoa.runtime` / `tinysoa.api` / `tinysoa.core` 可直接
+  导入文档中的名字；`tinysoa.spi` / `tinysoa.obs` 改用惰性导出避免循环导入。
 
 ---
 
@@ -41,7 +54,7 @@
 | 设计组件 | 实现状态 | 差距 | 收敛路径 |
 |---------|---------|------|---------|
 | `ServiceStatus` FSM | ✅ 5 状态 + `transition()` 守卫 | 设计中还有 `DEGRADED`/`STARTING`/`STOPPING` | Phase 3 扩展 FSM（新增状态，非破坏性） |
-| `Service` / `Method` / `Event` | ✅ frozen dataclass | 设计中 Service 有 `instance_id`、tags | Phase 2 添加字段 |
+| `Service` / `Method` / `Event` | ✅ dataclass；`Service` 已含 `dependencies` | 设计中 Service 还有 `instance_id`、tags | Phase 2 添加字段 |
 | `Endpoint` / `Protocol` | ✅ | 匹配 | — |
 | `Message` | ✅ (core/model.py) + `EventMessage` (eventbus/message.py) | 两个 Message 类型并存 | Phase 2 统一 |
 
@@ -50,8 +63,8 @@
 | 设计组件 | 实现状态 | 差距 | 收敛路径 |
 |---------|---------|------|---------|
 | `Container` | ✅ | 设计中的 `ServiceRegistry` 描述的是分布式注册表 | Phase 2: Container → 本地视图；SD 集成 → 分布式发现 |
-| `LifecycleManager` | ✅ Hook 系统 (on_start/on_stop/on_terminate) | 设计中是 InternalEventBus 驱动 | Phase 2: 保留 Hook 机制，增加 InternalEventBus 作为通知层 |
-| `DependencyResolver` | ❌ | 拓扑排序 + 依赖等待 | Phase 2 |
+| `LifecycleManager` | ✅ Hook 系统 + 依赖感知启停 (`start_all` / `stop_all` / `terminate_all`) | 设计中是 InternalEventBus 驱动 | Phase 2: 保留 Hook 机制，增加 InternalEventBus 作为通知层 |
+| `DependencyResolver` | ✅ `startup_order` / `startup_layers` / `shutdown_order` + 环检测 + strict 缺失依赖校验 | 远程依赖等待（SD 事件驱动）未接入 | Phase 3 |
 | `HealthChecker` | ✅ ABC + DefaultHealthChecker | 设计中有更丰富的健康探针 | Phase 2 扩展 |
 
 ### 2.3 通信 (eventbus/)
@@ -153,7 +166,7 @@ Phase 2 (v0.2 — 收敛目标)
   → ServiceProxy → EventBus 上的 RPC 层 (含 LB/重试)
   → SOME/IP SD 集成 → 分布式服务发现
   → Config schema 扩展 → 匹配设计 YAML 结构
-  → DependencyResolver → 拓扑排序启动
+  ✅ DependencyResolver → 拓扑排序 + 分层 + 环检测 (2026-11)
   → 策略与 InterceptorChain 集成
 
 Phase 3 (v0.3 — 生产级)
@@ -182,7 +195,7 @@ Phase 4 (v1.0 — 生态)
 | [01-overview](01-overview.md) | 架构四层图、Phase 路线图、成功标准 | 架构图以 ServiceProxy 为中心；实际以 EventBus 为中心 (见 ADR-001) |
 | [02-core-components](02-core-components.md) | ServiceRegistry、ConnectionManager、SD、ServiceProxy、LoadBalancer 设计 | 仅 EventBus 完全实现；ServiceProxy/LB/SD 为 Phase 2 |
 | [03-api-design](03-api-design.md) | @Service 声明式 API、ServiceProxy 接口 | 当前为命令式 Container API (见 ADR-004) |
-| [04-lifecycle](04-lifecycle.md) | FSM (含 DEGRADED)、InternalEventBus 驱动、DependencyResolver | 仅基础 FSM 实现 (见 §2.1); InternalEventBus 缺失 |
+| [04-lifecycle](04-lifecycle.md) | FSM (含 DEGRADED)、InternalEventBus 驱动、DependencyResolver | 基础 FSM + DependencyResolver 已实现；InternalEventBus 缺失 |
 | [05-interceptors-plugins](05-interceptors-plugins.md) | 三方法接口、8 个内置拦截器、执行流程图 | 中间件接口先行 (见 ADR-002); 3/8 拦截器实现 |
 | [06-configuration](06-configuration.md) | 配置结构、版本管理、灰度部署、原子性边界 | ConfigLoader 实现基础加载；版本/灰度未实现 |
 | [07-monitoring-tracing](07-monitoring-tracing.md) | TraceContextHeader、SLO 拓扑分类、Prometheus 告警 | 进程内指标+追踪；分布式追踪缺失 |

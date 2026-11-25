@@ -6,9 +6,10 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Callable, Dict, List, Optional
 
-from tinysoa.core.errors import StateError
+from tinysoa.core.errors import DependencyError, StateError
 from tinysoa.core.model import Service, ServiceStatus
 from tinysoa.runtime.container import Container
+from tinysoa.runtime.dependency import DependencyResolver
 
 
 class HealthStatus(str, Enum):
@@ -64,14 +65,25 @@ class LifecycleManager:
     """
 
     def __init__(
-        self, container: Container, health_checker: Optional[HealthChecker] = None
+        self,
+        container: Container,
+        health_checker: Optional[HealthChecker] = None,
+        *,
+        strict_dependencies: bool = False,
     ):
         self._container = container
         self._health_checker = health_checker or DefaultHealthChecker()
+        self._strict_dependencies = strict_dependencies
+        self._resolver = DependencyResolver(container, strict=strict_dependencies)
 
         self._on_start_hooks: List[LifecycleHook] = []
         self._on_stop_hooks: List[LifecycleHook] = []
         self._on_terminate_hooks: List[LifecycleHook] = []
+
+    @property
+    def dependency_resolver(self) -> DependencyResolver:
+        """Return the resolver used for ordered startup and shutdown."""
+        return self._resolver
 
     def add_on_start_hook(self, hook: LifecycleHook) -> None:
         """Add a hook to be called after service starts."""
@@ -90,6 +102,9 @@ class LifecycleManager:
         service = self._container.get_service(service_id)
         if not service:
             raise StateError(f"Service {service_id} not found in container")
+
+        if self._strict_dependencies:
+            self._ensure_dependencies(service)
 
         # Register if needed
         if service.status == ServiceStatus.INIT:
@@ -126,35 +141,55 @@ class LifecycleManager:
             hook(service)
 
     def start_all(self) -> None:
-        """Start all services in the container."""
-        for service in self._container.list_services():
+        """Start all services in dependency order.
+
+        Dependencies start before dependents.  A dependency cycle raises
+        ``DependencyError`` before any service starts.
+        """
+        for service_id in self._resolver.startup_order():
+            service = self._container.get_service(service_id)
+            if service is None:
+                continue
             if service.status in (
                 ServiceStatus.INIT,
                 ServiceStatus.REGISTERED,
                 ServiceStatus.STOPPED,
             ):
-                try:
-                    self.start_service(service.id)
-                except StateError:
-                    # Skip services that can't be started
-                    pass
+                self._ensure_dependencies(service)
+                self.start_service(service_id)
 
     def stop_all(self) -> None:
-        """Stop all running services."""
-        for service in self._container.get_running_services():
-            try:
-                self.stop_service(service.id)
-            except StateError:
-                pass
+        """Stop all running services in reverse dependency order."""
+        for service_id in self._resolver.shutdown_order():
+            service = self._container.get_service(service_id)
+            if service is not None and service.status == ServiceStatus.RUNNING:
+                self.stop_service(service_id)
 
     def terminate_all(self) -> None:
-        """Gracefully terminate all services."""
-        for service in self._container.list_services():
-            if service.status != ServiceStatus.TERMINATED:
-                try:
-                    self.terminate_service(service.id)
-                except StateError:
-                    pass
+        """Terminate all services in reverse dependency order."""
+        for service_id in self._resolver.shutdown_order():
+            service = self._container.get_service(service_id)
+            if service is not None and service.status != ServiceStatus.TERMINATED:
+                self.terminate_service(service_id)
+
+    def _ensure_dependencies(self, service: Service) -> None:
+        """Reject starting a service before its local required dependencies run.
+
+        Dependencies that are not registered locally are assumed to be remote
+        and are validated by service discovery instead.
+        """
+        for dependency in service.dependencies:
+            if not dependency.required:
+                continue
+            dependency_service = self._container.get_service(dependency.service_id)
+            if dependency_service is None:
+                continue
+            if dependency_service.status != ServiceStatus.RUNNING:
+                raise DependencyError(
+                    f"service {service.name!r} requires "
+                    f"{dependency_service.name!r} ({dependency.service_id:#x}) "
+                    f"to be RUNNING, got {dependency_service.status.value}"
+                )
 
     def check_health(self, service_id: int) -> HealthCheckResult:
         """Check health of a specific service."""

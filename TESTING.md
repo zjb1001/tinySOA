@@ -3,18 +3,19 @@
 > 原位置: `design/testing-framework.md` — 于 2026-06-20 移至项目根目录，因其内容为运行时现状报告 + CI 提案，非设计文档。
 > Status: living document — update as the suite grows.
 
-## 1. Current State (layered structure, 2026-06-20)
+## 1. Current State (layered structure, 2026-11-25)
 
-**131 tests passing, 4 skipped, 0 failures** — 47s on local loopback.
+Run `make ci` for the authoritative pass count; the numbers below describe the
+layer structure, not a fixed test count.
 
 ### Test Organization
 
 ```
 tests/
 ├── conftest.py                     # shared fixtures
-├── unit/         (8 files)         # fast, no network, always-run gate
+├── unit/         (18 modules)      # fast, no network, always-run gate
 ├── integration/  (5 files)         # multi-component, may use loopback
-├── examples/     (5 files)         # example verification (import/wiring)
+├── examples/     (7 files)         # example verification (import/wiring)
 └── system/       (12 ST dirs)      # standalone scripts, SKIP-guarded
 ```
 
@@ -23,6 +24,8 @@ tests/
 | Subpackage | Layer | Files |
 |---|---|---|
 | `core/` | unit | test_core_model, test_runtime_lifecycle |
+| `runtime/` | unit | test_runtime_lifecycle, test_dependency_resolver |
+| package facades | unit | test_package_exports |
 | `api/` | unit | test_api_contracts |
 | `policies/` | unit | test_policies |
 | `spi/` | unit | test_interceptors_plugins |

@@ -21,8 +21,8 @@ uv venv .venv && source .venv/bin/activate && uv pip install pytest pytest-async
 PYTHONPATH=.:src:third_party/pysomeip/src python -m examples.local_echo_service.app
 
 # 5) 跑测试套件
-.venv/bin/python -m pytest tests/unit -q          # 单元测试 (72 个, <1s)
-.venv/bin/python -m pytest tests/ -q             # 全量 (131 个, ~48s)
+.venv/bin/python -m pytest tests/unit -q          # 单元测试（快速门禁）
+.venv/bin/python -m pytest tests/ -q             # 全量
 ```
 
 > `third_party/pysomeip` 通过 git submodule 引入，**不会打包进本项目仓库**。
@@ -171,21 +171,36 @@ async def resilient_invoke(ctx):
 
 ### 第五步：生命周期管理
 
-用 `Container` 注册服务，用 `LifecycleManager` 管理启停：
+用 `Container` 注册服务，用 `LifecycleManager` 管理启停。服务可通过
+`ServiceDependency` 声明依赖，框架会按拓扑序启动、按反序关闭：
 
 ```python
-from tinysoa.runtime.container import Container
-from tinysoa.runtime.lifecycle import LifecycleManager
+from tinysoa.core.model import Service, ServiceDependency
+from tinysoa.runtime import Container, LifecycleManager
+
+engine = Service(name="engine", id=1, version="1.0.0")
+dashboard = Service(
+    name="dashboard",
+    id=2,
+    version="1.0.0",
+    dependencies=[ServiceDependency(engine.id)],
+)
 
 container = Container()
-container.add_service(service)
+container.add_service(engine)
+container.add_service(dashboard)
 
 lifecycle = LifecycleManager(container)
-lifecycle.start_service(service.id)     # REGISTERED → RUNNING
+lifecycle.start_all()      # engine → dashboard（依赖优先）
 # ... 你的业务逻辑 ...
-lifecycle.stop_service(service.id)      # RUNNING → STOPPED
-lifecycle.terminate_service(service.id) # → TERMINATED
+lifecycle.stop_all()       # dashboard → engine（反序）
+lifecycle.terminate_all()  # → TERMINATED
 ```
+
+需要单独控制某个服务时仍可使用 `start_service(id)` / `stop_service(id)`。
+`LifecycleManager(container, strict_dependencies=True)` 会拒绝在必需依赖尚未
+`RUNNING` 时启动服务；`DependencyResolver` 另外提供 `startup_order()` /
+`startup_layers()` / `shutdown_order()`，便于自行编排并行启动。
 
 ### 完整可运行示例
 
